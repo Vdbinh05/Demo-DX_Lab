@@ -59,9 +59,16 @@ npm run build
 Phạm vi đã kết nối dữ liệu thật:
 
 - Đăng ký tài khoản qua `POST /register` và lưu vào SQL Server
-- Đăng nhập qua `POST /login`
+- Đăng nhập qua `POST /login` và đối chiếu khu vực Nhân viên/Admin với `RoleID` trả về
 - Mật khẩu tài khoản mới được băm PBKDF2
 - Các tài khoản cũ lưu mật khẩu dạng thường vẫn được hỗ trợ trong giai đoạn chuyển đổi
+
+Frontend đã tách hai không gian làm việc:
+
+- Nhân viên (`Sales`, `Warehouse`): bán hàng tại quầy, xem danh mục, khuyến mãi, đơn cá nhân và tra cứu khách hàng
+- Quản trị viên (`Admin`): xem doanh thu tháng, quản lý đơn hàng, sản phẩm, khách hàng, kho và tài khoản
+- Tài khoản đăng ký công khai luôn mang vai trò `Sales`; frontend không cho người dùng tự cấp quyền Admin
+- Quyền truy cập được kiểm tra tập trung trước khi hiển thị từng trang
 
 Các phần còn ở dạng prototype:
 
@@ -69,10 +76,11 @@ Các phần còn ở dạng prototype:
 - Không có n8n thật
 - Không có Ollama/Qdrant thật
 - Dữ liệu nghiệp vụ ngoài tài khoản vẫn dùng mock data
+- JWT, endpoint `/auth/me` và RBAC tại backend chưa được triển khai
 
 Các chức năng đã mô phỏng:
 
-- Login / chọn role
+- Chọn cổng đăng nhập Nhân viên/Admin và kiểm tra với vai trò SQL
 - Dashboard
 - Sales
 - Inventory
@@ -110,5 +118,10 @@ Bản hiện tại đã nâng cấp thành frontend GUI hoàn chỉnh hơn cho m
 - Approval Center với Approve / Reject
 - AI Copilot với quick prompts + mock tool panel
 - My Tasks / Workflow History / Knowledge / Administration
-- Role simulation: CEO / Manager / Sales / Warehouse
+- Hai dashboard riêng cho Nhân viên và Quản trị viên
 - Toast notification, responsive layout, search/filter UI
+
+## Tài liệu nguồn mở
+
+- [Nguồn mở tham khảo](docs/OPEN_SOURCE_REFERENCES.md)
+- [Thông báo bên thứ ba](THIRD_PARTY_NOTICES.md)

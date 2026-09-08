@@ -1,241 +1,694 @@
 import React, { useState } from "react";
-import * as Icons from "lucide-react";
-import { menu, customers, products, orders, purchaseRequests, activities } from "./data";
-
-const money = n => new Intl.NumberFormat("vi-VN").format(n) + " ₫";
-const clone = x => JSON.parse(JSON.stringify(x));
-
-function Icon({ name, size = 18 }) { const C = Icons[name] || Icons.Circle; return <C size={size} strokeWidth={1.8} />; }
-function Badge({ children, tone }) { return <span className={`badge ${tone || "gray"}`}>{children}</span> }
-function tone(s) { if (/approved|completed|active|in stock|sent/i.test(s)) return "green"; if (/pending|processing|draft|low/i.test(s)) return "yellow"; if (/rejected|out/i.test(s)) return "red"; return "blue"; }
+import {
+  ArrowLeftRight,
+  ArrowRight,
+  ArrowUpRight,
+  BadgeCheck,
+  BadgePercent,
+  BarChart3,
+  Bell,
+  BellRing,
+  Boxes,
+  Building2,
+  CalendarDays,
+  ChartNoAxesCombined,
+  Circle,
+  CircleAlert,
+  CircleCheck,
+  CircleHelp,
+  ClipboardList,
+  CreditCard,
+  Download,
+  Ellipsis,
+  Info,
+  KeyRound,
+  Laptop,
+  LayoutDashboard,
+  ListFilter,
+  Lock,
+  LockKeyhole,
+  LockOpen,
+  LogIn,
+  LogOut,
+  Megaphone,
+  Menu,
+  Minus,
+  Monitor,
+  Package,
+  PackageCheck,
+  PackageSearch,
+  PackageX,
+  Pencil,
+  Plus,
+  ReceiptText,
+  ScrollText,
+  Search,
+  Settings,
+  ShieldAlert,
+  ShieldCheck,
+  ShieldX,
+  ShoppingBag,
+  ShoppingBasket,
+  ShoppingCart,
+  Sparkles,
+  Trash2,
+  TrendingUp,
+  TriangleAlert,
+  UserCog,
+  UserPlus,
+  UserRound,
+  UsersRound,
+  WalletCards,
+  Warehouse,
+  X,
+} from "lucide-react";
+import {
+  customers,
+  employees,
+  menus,
+  monthlyRevenue,
+  orders,
+  permissionsByPortal,
+  portalConfig,
+  products,
+  promotions,
+} from "./data";
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/$/, "");
 const LOGIN_API_URL = `${API_BASE_URL}/login`;
 const REGISTER_API_URL = `${API_BASE_URL}/register`;
-const EMPTY_REGISTER_FORM = { fullName: "", username: "", roleId: "Sales", password: "", confirmPassword: "" };
+
+const formatMoney = (value) => `${new Intl.NumberFormat("vi-VN").format(value)} ₫`;
+
+const iconMap = {
+  ArrowLeftRight, ArrowRight, ArrowUpRight, BadgeCheck, BadgePercent, BarChart3,
+  Bell, BellRing, Boxes, Building2, CalendarDays, ChartNoAxesCombined, Circle,
+  CircleAlert, CircleCheck, CircleHelp, ClipboardList, CreditCard, Download,
+  Ellipsis, Info, KeyRound, Laptop, LayoutDashboard, ListFilter, Lock,
+  LockKeyhole, LockOpen, LogIn, LogOut, Megaphone, Menu, Minus, Monitor,
+  Package, PackageCheck, PackageSearch, PackageX, Pencil, Plus, ReceiptText,
+  ScrollText, Search, Settings, ShieldAlert, ShieldCheck, ShieldX, ShoppingBag,
+  ShoppingBasket, ShoppingCart, Sparkles, Trash2, TrendingUp, TriangleAlert,
+  UserCog, UserPlus, UserRound, UsersRound, WalletCards, Warehouse, X,
+};
+
+function Icon({ name, size = 20, strokeWidth = 1.9 }) {
+  const Component = iconMap[name] || Circle;
+  return <Component size={size} strokeWidth={strokeWidth} aria-hidden="true" />;
+}
 
 function apiErrorMessage(data, fallback) {
-    const detail = data?.message ?? data?.detail;
-    if (typeof detail === "string") return detail;
-    if (Array.isArray(detail)) return detail.map(item => item?.msg).filter(Boolean).join("; ") || fallback;
-    return fallback;
+  const detail = data?.message ?? data?.detail;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) return detail.map((item) => item?.msg).filter(Boolean).join("; ") || fallback;
+  return fallback;
 }
 
-function Login({ onLogin }) {
-    const [role, setRole] = useState("Manager");
-    const [registerOpen, setRegisterOpen] = useState(false);
-    const [registered, setRegistered] = useState(false);
-    const [username, setUsername] = useState("");
-    const [password, setPassword] = useState("");
-    const [showPassword, setShowPassword] = useState(false);
-    const [error, setError] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [registerForm, setRegisterForm] = useState(() => ({ ...EMPTY_REGISTER_FORM }));
-    const [registerError, setRegisterError] = useState("");
-    const [registerLoading, setRegisterLoading] = useState(false);
+function portalFromRole(roleId) {
+  const normalizedRole = String(roleId || "").trim().toLowerCase();
+  return Object.entries(portalConfig).find(([, config]) =>
+    config.roles.some((role) => role.toLowerCase() === normalizedRole),
+  )?.[0] || null;
+}
 
-    const handleLogin = async () => {
-        setError("");
-        if (!username.trim() || !password) { setError("Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu."); return; }
-        setLoading(true);
-        try {
-            const res = await fetch(LOGIN_API_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username: username.trim(), password })
-            });
-            const data = await res.json().catch(() => null);
-            if (res.ok && data?.success) {
-                onLogin(data.user);
-            } else {
-                setError(apiErrorMessage(data, "Sai tên đăng nhập hoặc mật khẩu."));
-            }
-        } catch (err) {
-            setError("Không thể kết nối tới server FastAPI (cổng 8000). Bạn có thể chọn 'Vào demo' bên dưới nếu chưa bật backend.");
-        } finally {
-            setLoading(false);
-        }
-    };
+function LoginScreen({ onAuthenticated }) {
+  const [portal, setPortal] = useState("employee");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [registerOpen, setRegisterOpen] = useState(false);
+  const selectedPortal = portalConfig[portal];
 
-    const openRegister = () => {
-        setRegisterForm({ ...EMPTY_REGISTER_FORM });
-        setRegisterError("");
-        setRegistered(false);
-        setRegisterOpen(true);
-    };
+  const handleLogin = async (event) => {
+    event.preventDefault();
+    setError("");
 
-    const updateRegisterField = (field, value) => {
-        setRegisterForm(current => ({ ...current, [field]: value }));
-    };
+    if (!username.trim() || !password) {
+      setError("Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.");
+      return;
+    }
 
-    const handleRegister = async event => {
-        event?.preventDefault();
-        setRegisterError("");
+    setLoading(true);
+    try {
+      const response = await fetch(LOGIN_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: username.trim(), password }),
+      });
+      const data = await response.json().catch(() => null);
 
-        const fullName = registerForm.fullName.trim();
-        const registerUsername = registerForm.username.trim();
-        if (!fullName || !registerUsername || !registerForm.password || !registerForm.confirmPassword) {
-            setRegisterError("Vui lòng nhập đầy đủ thông tin đăng ký.");
-            return;
-        }
-        if (!/^[A-Za-z0-9._-]{3,50}$/.test(registerUsername)) {
-            setRegisterError("Tên đăng nhập phải có 3-50 ký tự và chỉ gồm chữ không dấu, số, dấu chấm, gạch dưới hoặc gạch ngang.");
-            return;
-        }
-        if (registerForm.password.length < 8) {
-            setRegisterError("Mật khẩu phải có ít nhất 8 ký tự.");
-            return;
-        }
-        if (registerForm.password !== registerForm.confirmPassword) {
-            setRegisterError("Mật khẩu xác nhận không khớp.");
-            return;
-        }
+      if (!response.ok || !data?.success || !data?.user) {
+        setError(apiErrorMessage(data, "Tên đăng nhập hoặc mật khẩu không chính xác."));
+        return;
+      }
 
-        setRegisterLoading(true);
-        try {
-            const res = await fetch(REGISTER_API_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    full_name: fullName,
-                    username: registerUsername,
-                    password: registerForm.password,
-                    role_id: registerForm.roleId
-                })
-            });
-            const data = await res.json().catch(() => null);
-            if (res.ok && data?.success) {
-                setUsername(data.user?.Username || registerUsername);
-                setPassword("");
-                setRegistered(true);
-            } else {
-                setRegisterError(apiErrorMessage(data, "Không thể tạo tài khoản."));
-            }
-        } catch (err) {
-            setRegisterError("Không thể kết nối tới server FastAPI (cổng 8000).");
-        } finally {
-            setRegisterLoading(false);
-        }
-    };
+      const accountPortal = portalFromRole(data.user.RoleID);
+      if (!accountPortal) {
+        setError(`Vai trò “${data.user.RoleID || "chưa xác định"}” chưa được cấu hình trong hệ thống.`);
+        return;
+      }
 
-    return <div className="login-page">
-        <div className="login-deco login-deco-tl" /><div className="login-deco login-deco-br" />
-        <div className="login-dots login-dots-left" /><div className="login-dots login-dots-right" />
-        <div className="login-shell">
-            <div className="login-brand">
-                <div className="login-logo"><span className="cube-top" /><span className="cube-left" /><span className="cube-right" /></div>
-                <div><strong>DX-LAB CORE</strong><small>Digital Workspace for Open Source Team</small></div>
+      if (accountPortal !== portal) {
+        setError(
+          `Tài khoản này thuộc khu vực ${portalConfig[accountPortal].label}. ` +
+          `Hãy chọn đúng loại tài khoản để đăng nhập.`,
+        );
+        return;
+      }
+
+      onAuthenticated(data.user, accountPortal);
+    } catch {
+      setError("Không thể kết nối FastAPI tại cổng 8000. Hãy kiểm tra backend và cấu hình VITE_API_URL.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <main className="auth-page">
+      <div className="auth-orb auth-orb-one" />
+      <div className="auth-orb auth-orb-two" />
+
+      <section className="auth-shell">
+        <div className="auth-story">
+          <div className="auth-brand">
+            <LogoMark />
+            <div>
+              <strong>DX-LAB CORE</strong>
+              <span>Digital Commerce Workspace</span>
             </div>
-            <div className="login-card login-card-wide">
-                <div className="login-visual">
-                    <div className="visual-cloud"><Icon name="Cloud" size={38} /></div>
-                    <div className="visual-gear"><Icon name="Settings" size={27} /></div>
-                    <div className="visual-shield"><Icon name="ShieldCheck" size={27} /></div>
-                    <div className="visual-user"><Icon name="UserRound" size={22} /></div>
-                    <div className="visual-leaf leaf-one" /><div className="visual-leaf leaf-two" /><div className="visual-leaf leaf-three" />
-                    <div className="dashboard-illustration">
-                        <div className="monitor">
-                            <div className="monitor-top"><span /><span /><span /></div>
-                            <div className="monitor-body"><div className="mini-sidebar"><i /><i /><i /><i /><i /></div><div className="mini-content"><div className="mini-title" /><div className="mini-cards"><i /><i /><i /></div><div className="mini-chart"><span /><span /><span /><span /><span /></div></div></div>
-                        </div>
-                        <div className="monitor-stand" />
-                        <div className="phone"><div className="phone-notch" /><div className="phone-line" /><div className="phone-card" /><div className="phone-card small" /><div className="phone-card small" /></div>
-                        <div className="plant-pot"><div className="plant-stem" /><div className="plant-pot-body" /></div>
-                        <div className="visual-books"><i /><i /><i /></div><div className="visual-bars"><i /><i /><i /><i /></div>
-                    </div>
-                    <div className="visual-ground" />
-                </div>
-                <div className="login-form">
-                    <div className="login-title">Đăng nhập hệ thống</div>
-                    <p className="login-subtitle">Đăng nhập để truy cập không gian làm việc DX-Lab Core.</p>
-                    {error && <div className="login-error">{error}</div>}
-                    <div className="login-field"><Icon name="UserRound" size={18} /><input aria-label="Tên đăng nhập" placeholder="Tên đăng nhập" autoComplete="username" value={username} onChange={e => setUsername(e.target.value)} onKeyDown={e => e.key === "Enter" && handleLogin()} /></div>
-                    <div className="login-field"><Icon name="LockKeyhole" size={18} /><input aria-label="Mật khẩu" type={showPassword ? "text" : "password"} placeholder="Mật khẩu" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === "Enter" && handleLogin()} /><button type="button" style={{ background: "none", padding: 0, color: "inherit", display: "grid", placeItems: "center" }} onClick={() => setShowPassword(!showPassword)}><Icon name={showPassword ? "EyeOff" : "Eye"} size={18} /></button></div>
-                    <div className="login-options"><label><input type="checkbox" /> <span>Ghi nhớ đăng nhập</span></label><button type="button" className="forgot">Quên mật khẩu?</button></div>
-                    <button className="primary full login-sso" onClick={handleLogin} disabled={loading}><Icon name="ShieldCheck" size={19} /> {loading ? "Đang đăng nhập..." : "Đăng nhập SSO"}</button>
-                    <div className="login-register"><span>Chưa có tài khoản?</span><button type="button" onClick={openRegister}>Tạo tài khoản</button></div>
-                    <div className="demo-role"><span>Vai trò demo</span><select value={role} onChange={e => setRole(e.target.value)}>{["CEO", "Manager", "Sales", "Warehouse"].map(x => <option key={x}>{x}</option>)}</select><button type="button" onClick={() => onLogin({ FullName: `${role} User`, RoleID: role })}>Vào demo</button></div>
-                </div>
-                <div className="login-features">
-                    <div><Icon name="ShieldCheck" size={27} /><span>Single Sign-On</span></div><i /><div><Icon name="Shield" size={27} /><span>Keycloak</span></div><i /><div><Icon name="UsersRound" size={27} /><span>Phân quyền theo vai trò</span></div>
-                </div>
+          </div>
+
+          <div className="story-content">
+            <span className="story-kicker">MỘT HỆ THỐNG · ĐÚNG QUYỀN HẠN</span>
+            <h1>Không gian làm việc rõ ràng cho từng vai trò.</h1>
+            <p>
+              Nhân viên tập trung bán hàng. Quản trị viên kiểm soát dữ liệu,
+              vận hành và doanh thu trên một nền tảng thống nhất.
+            </p>
+            <div className="story-preview">
+              <div className="preview-head">
+                <span><i /> Tổng quan vận hành</span>
+                <small>Tháng 09/2026</small>
+              </div>
+              <div className="preview-grid">
+                <div><Icon name="TrendingUp" /><span>Doanh thu</span><b>486,2 triệu</b></div>
+                <div><Icon name="ShoppingBag" /><span>Đơn hàng</span><b>128 đơn</b></div>
+              </div>
+              <div className="preview-chart">
+                {[36, 52, 44, 67, 61, 82, 76, 94].map((height, index) => (
+                  <i key={index} style={{ height: `${height}%` }} />
+                ))}
+              </div>
             </div>
-            {registerOpen && <Modal title="Tạo tài khoản" onClose={() => !registerLoading && setRegisterOpen(false)}>
-                {!registered ? <form onSubmit={handleRegister}>
-                    <div className="register-intro">Tạo tài khoản để sử dụng DX-Lab Core. Thông tin sẽ được lưu trực tiếp vào SQL Server.</div>
-                    <div className="form-grid">
-                        <Field label="Họ và tên"><input placeholder="Nguyễn Văn A" value={registerForm.fullName} onChange={e => updateRegisterField("fullName", e.target.value)} maxLength={100} required /></Field>
-                        <Field label="Tên đăng nhập"><input placeholder="nguyenvana" autoComplete="username" value={registerForm.username} onChange={e => updateRegisterField("username", e.target.value)} minLength={3} maxLength={50} required /></Field>
-                        <Field label="Vai trò"><select value={registerForm.roleId} onChange={e => updateRegisterField("roleId", e.target.value)}>{["Manager", "Sales", "Warehouse"].map(x => <option key={x}>{x}</option>)}</select></Field>
-                        <Field label="Mật khẩu"><input type="password" placeholder="Tối thiểu 8 ký tự" autoComplete="new-password" value={registerForm.password} onChange={e => updateRegisterField("password", e.target.value)} minLength={8} maxLength={128} required /></Field>
-                        <Field label="Xác nhận mật khẩu"><input type="password" placeholder="Nhập lại mật khẩu" autoComplete="new-password" value={registerForm.confirmPassword} onChange={e => updateRegisterField("confirmPassword", e.target.value)} minLength={8} maxLength={128} required /></Field>
-                    </div>
-                    {registerError && <div className="login-error register-error">{registerError}</div>}
-                    <div className="modal-actions">
-                        <button type="button" className="secondary" onClick={() => setRegisterOpen(false)} disabled={registerLoading}>Hủy</button>
-                        <button type="submit" className="primary" disabled={registerLoading}><Icon name="UserPlus" /> {registerLoading ? "Đang tạo..." : "Tạo tài khoản"}</button>
-                    </div>
-                </form> : <div className="register-success">
-                    <div className="register-success-icon"><Icon name="CheckCircle2" size={30} /></div>
-                    <h3>Tạo tài khoản thành công</h3>
-                    <p>Tài khoản <b>{registerForm.username.trim()}</b> đã được lưu vào SQL Server. Tên đăng nhập đã được điền sẵn cho bạn.</p>
-                    <button className="primary" onClick={() => setRegisterOpen(false)}>Đăng nhập ngay</button>
-                </div>}
-            </Modal>}
+          </div>
+
+          <div className="story-trust">
+            <span><Icon name="ShieldCheck" size={17} /> Phân quyền theo SQL Server</span>
+            <span><Icon name="LockKeyhole" size={17} /> Mật khẩu được mã hóa</span>
+          </div>
         </div>
+
+        <div className="auth-panel">
+          <div className="auth-form-wrap">
+            <div className="auth-heading">
+              <span className="mobile-brand"><LogoMark /> DX-LAB CORE</span>
+              <p className="eyebrow">CỔNG ĐĂNG NHẬP</p>
+              <h2>Chào mừng trở lại</h2>
+              <p>Chọn khu vực làm việc, sau đó đăng nhập bằng tài khoản được cấp.</p>
+            </div>
+
+            <div className="portal-picker" role="radiogroup" aria-label="Loại tài khoản">
+              {Object.entries(portalConfig).map(([key, config]) => (
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={portal === key}
+                  className={`portal-option ${portal === key ? "selected" : ""}`}
+                  key={key}
+                  onClick={() => { setPortal(key); setError(""); }}
+                >
+                  <span className="portal-icon"><Icon name={config.icon} /></span>
+                  <span><b>{config.label}</b><small>{config.shortLabel}</small></span>
+                  <i className="radio-dot" />
+                </button>
+              ))}
+            </div>
+
+            <div className={`portal-note ${portal}`}>
+              <Icon name={selectedPortal.icon} size={18} />
+              <span>{selectedPortal.description}</span>
+            </div>
+
+            <form className="auth-form" onSubmit={handleLogin}>
+              {error && <div className="form-alert" role="alert"><Icon name="CircleAlert" size={18} /><span>{error}</span></div>}
+
+              <label className="input-group">
+                <span>Tên đăng nhập</span>
+                <div className="input-shell">
+                  <Icon name="UserRound" size={19} />
+                  <input
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                    placeholder="Nhập tên đăng nhập"
+                    autoComplete="username"
+                  />
+                </div>
+              </label>
+
+              <label className="input-group">
+                <span>Mật khẩu</span>
+                <div className="input-shell">
+                  <Icon name="LockKeyhole" size={19} />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Nhập mật khẩu"
+                    autoComplete="current-password"
+                  />
+                  <button type="button" className="input-action" onClick={() => setShowPassword((current) => !current)} aria-label="Hiện hoặc ẩn mật khẩu">
+                    <Icon name={showPassword ? "EyeOff" : "Eye"} size={18} />
+                  </button>
+                </div>
+              </label>
+
+              <div className="auth-options">
+                <label><input type="checkbox" /> Ghi nhớ đăng nhập</label>
+                <button type="button">Quên mật khẩu?</button>
+              </div>
+
+              <button className="login-button" type="submit" disabled={loading}>
+                {loading ? <span className="spinner" /> : <Icon name="LogIn" size={19} />}
+                {loading ? "Đang xác thực..." : `Đăng nhập với tư cách ${selectedPortal.label}`}
+              </button>
+            </form>
+
+            <div className="register-link">
+              Chưa có tài khoản nhân viên?
+              <button type="button" onClick={() => setRegisterOpen(true)}>Tạo tài khoản</button>
+            </div>
+
+            <div className="security-caption">
+              <Icon name="Info" size={15} />
+              Lựa chọn ở trên không cấp quyền. Hệ thống vẫn kiểm tra vai trò thật trong SQL Server.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {registerOpen && <RegisterModal onClose={() => setRegisterOpen(false)} onUseUsername={(value) => { setUsername(value); setPortal("employee"); setRegisterOpen(false); }} />}
+    </main>
+  );
+}
+
+function RegisterModal({ onClose, onUseUsername }) {
+  const [form, setForm] = useState({ fullName: "", username: "", password: "", confirmPassword: "" });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setError("");
+    const fullName = form.fullName.trim();
+    const username = form.username.trim();
+
+    if (!fullName || !username || !form.password || !form.confirmPassword) {
+      setError("Vui lòng nhập đầy đủ thông tin.");
+      return;
+    }
+    if (!/^[A-Za-z0-9._-]{3,50}$/.test(username)) {
+      setError("Tên đăng nhập phải có 3–50 ký tự: chữ không dấu, số, dấu chấm, gạch dưới hoặc gạch ngang.");
+      return;
+    }
+    if (form.password.length < 8) {
+      setError("Mật khẩu phải có ít nhất 8 ký tự.");
+      return;
+    }
+    if (form.password !== form.confirmPassword) {
+      setError("Mật khẩu xác nhận không khớp.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(REGISTER_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ full_name: fullName, username, password: form.password, role_id: "Sales" }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.success) {
+        setError(apiErrorMessage(data, "Không thể tạo tài khoản."));
+        return;
+      }
+      setSuccess(true);
+    } catch {
+      setError("Không thể kết nối FastAPI tại cổng 8000.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal title="Tạo tài khoản nhân viên" onClose={onClose} narrow>
+      {success ? (
+        <div className="success-state">
+          <span><Icon name="BadgeCheck" size={34} /></span>
+          <h3>Tạo tài khoản thành công</h3>
+          <p>Tài khoản <b>{form.username.trim()}</b> đã được lưu với vai trò <b>Sales</b>.</p>
+          <button className="primary-button" onClick={() => onUseUsername(form.username.trim())}>Đăng nhập ngay</button>
+        </div>
+      ) : (
+        <form onSubmit={submit}>
+          <div className="register-policy"><Icon name="ShieldCheck" size={19} /><span>Tài khoản đăng ký công khai luôn là nhân viên. Admin chỉ có thể được cấp bởi quản trị viên.</span></div>
+          <div className="form-grid">
+            <label className="input-group full-span"><span>Họ và tên</span><input value={form.fullName} onChange={(event) => update("fullName", event.target.value)} placeholder="Nguyễn Văn A" maxLength={100} /></label>
+            <label className="input-group full-span"><span>Tên đăng nhập</span><input value={form.username} onChange={(event) => update("username", event.target.value)} placeholder="nguyenvana" maxLength={50} autoComplete="username" /></label>
+            <label className="input-group"><span>Mật khẩu</span><input type="password" value={form.password} onChange={(event) => update("password", event.target.value)} placeholder="Tối thiểu 8 ký tự" autoComplete="new-password" /></label>
+            <label className="input-group"><span>Xác nhận mật khẩu</span><input type="password" value={form.confirmPassword} onChange={(event) => update("confirmPassword", event.target.value)} placeholder="Nhập lại mật khẩu" autoComplete="new-password" /></label>
+          </div>
+          {error && <div className="form-alert compact" role="alert"><Icon name="CircleAlert" size={17} />{error}</div>}
+          <div className="modal-actions">
+            <button type="button" className="secondary-button" onClick={onClose}>Hủy</button>
+            <button type="submit" className="primary-button" disabled={loading}>{loading ? "Đang tạo..." : "Tạo tài khoản"}</button>
+          </div>
+        </form>
+      )}
+    </Modal>
+  );
+}
+
+function LogoMark() {
+  return <span className="logo-mark"><span>DX</span></span>;
+}
+
+function Workspace({ user, portal, onLogout }) {
+  const config = portalConfig[portal];
+  const allowedMenu = menus[portal].filter((item) => permissionsByPortal[portal].has(item.permission));
+  const [page, setPage] = useState(config.landingPage);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [toast, setToast] = useState("");
+
+  const showToast = (message) => {
+    setToast(message);
+    window.clearTimeout(showToast.timer);
+    showToast.timer = window.setTimeout(() => setToast(""), 2800);
+  };
+
+  const currentItem = allowedMenu.find((item) => item.id === page) || allowedMenu[0];
+  const navigate = (nextPage) => {
+    const target = allowedMenu.find((item) => item.id === nextPage);
+    if (!target || !permissionsByPortal[portal].has(target.permission)) {
+      showToast("Bạn không có quyền truy cập khu vực này.");
+      return;
+    }
+    setPage(nextPage);
+    setSidebarOpen(false);
+  };
+
+  return (
+    <div className={`workspace-app portal-${portal}`}>
+      <Sidebar portal={portal} menu={allowedMenu} page={page} onNavigate={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <div className="workspace-main">
+        <Header user={user} portal={portal} pageLabel={currentItem?.label} onLogout={onLogout} onOpenMenu={() => setSidebarOpen(true)} />
+        <div className="workspace-content">
+          <PageRouter page={page} portal={portal} user={user} onNavigate={navigate} showToast={showToast} />
+        </div>
+      </div>
+      {toast && <div className="toast"><Icon name="CircleCheck" size={19} />{toast}</div>}
     </div>
+  );
 }
 
-function Sidebar({ page, setPage, collapsed, setCollapsed, role }) {
-    return <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
-        <div className="side-top"><div className="brand"><span className="brand-mark">DX</span>{!collapsed && <div><b>DX-Lab Core</b><small>Portal v0.1</small></div>}</div><button className="icon-btn" onClick={() => setCollapsed(!collapsed)}><Icon name={collapsed ? "PanelLeftOpen" : "PanelLeftClose"} /></button></div>
-        <div className="workspace">{!collapsed && <><span>WORKSPACE</span><b>{role} Workspace</b></>}</div>
-        <nav>{menu.map(m => <React.Fragment key={m.id}><button className={`nav-item ${page === m.id ? "active" : ""}`} onClick={() => setPage(m.id)}><Icon name={m.icon} />{!collapsed && <span>{m.label}</span>}</button>{!collapsed && m.children && <div className="subnav">{m.children.map(([id, label]) => <button className={`sub-item ${page === id ? "active" : ""}`} onClick={() => setPage(id)} key={id}>{label}</button>)}</div>}</React.Fragment>)}</nav>
-        {!collapsed && <div className="side-footer"><div className="health-dot" /><span>All systems operational</span></div>}
-    </aside>
+function Sidebar({ portal, menu, page, onNavigate, open, onClose }) {
+  const config = portalConfig[portal];
+  return (
+    <>
+      <button className={`sidebar-backdrop ${open ? "show" : ""}`} onClick={onClose} aria-label="Đóng menu" />
+      <aside className={`workspace-sidebar ${open ? "open" : ""}`}>
+        <div className="sidebar-brand"><LogoMark /><div><strong>DX-LAB CORE</strong><span>Commerce Workspace</span></div></div>
+        <div className={`portal-badge ${portal}`}><Icon name={config.icon} size={18} /><div><span>KHÔNG GIAN</span><b>{config.shortLabel}</b></div></div>
+        <nav className="sidebar-nav">
+          <span className="nav-caption">ĐIỀU HƯỚNG</span>
+          {menu.map((item) => (
+            <button key={item.id} className={page === item.id ? "active" : ""} onClick={() => onNavigate(item.id)}>
+              <Icon name={item.icon} size={19} /><span>{item.label}</span>{page === item.id && <i />}
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-security"><Icon name="ShieldCheck" size={18} /><div><b>Quyền hạn được bảo vệ</b><span>{portal === "admin" ? "Toàn quyền quản trị" : "Không có quyền sửa hoặc xóa"}</span></div></div>
+      </aside>
+    </>
+  );
 }
 
-function Topbar({ role, page, onLogout, user }) {
-    const fullName = user?.FullName || user?.name || user?.username || "User";
-    const initials = fullName.trim().split(/\s+/).filter(Boolean).map(w => w[0]).slice(-2).join("").toUpperCase() || "U";
-    return <header className="topbar"><div><div className="breadcrumb">DX-Lab Core <span>/</span> <b>{pageLabel(page)}</b></div></div><div className="top-actions">
-        <button className="icon-btn"><Icon name="Search" /></button><button className="icon-btn notification"><Icon name="Bell" /><i>3</i></button>
-        <div className="user-menu"><div className="avatar">{initials}</div><div className="user-text"><b>{fullName}</b><small>{role}</small></div><button className="icon-btn" onClick={onLogout}><Icon name="LogOut" size={16} /></button></div>
-    </div></header>
+function Header({ user, portal, pageLabel, onLogout, onOpenMenu }) {
+  const fullName = user?.FullName || user?.Username || "Người dùng";
+  const initials = fullName.split(/\s+/).filter(Boolean).slice(-2).map((word) => word[0]).join("").toUpperCase();
+  return (
+    <header className="workspace-header">
+      <div className="header-title">
+        <button className="mobile-menu" onClick={onOpenMenu}><Icon name="Menu" /></button>
+        <div><span>DX-Lab Core / {portalConfig[portal].label}</span><h1>{pageLabel}</h1></div>
+      </div>
+      <div className="header-actions">
+        <button className="header-icon" aria-label="Tìm kiếm"><Icon name="Search" size={19} /></button>
+        <button className="header-icon notification" aria-label="Thông báo"><Icon name="Bell" size={19} /><i /></button>
+        <div className="profile"><span className="profile-avatar">{initials || "DX"}</span><div><b>{fullName}</b><span>{user?.RoleID || portalConfig[portal].label}</span></div><button onClick={onLogout} title="Đăng xuất"><Icon name="LogOut" size={18} /></button></div>
+      </div>
+    </header>
+  );
 }
-const pageLabel = p => ({ dashboard: "Dashboard", sales: "Sales", customers: "Customers", products: "Products", orders: "Sales Orders", quotations: "Quotations", inventory: "Inventory", stock: "Stock", movement: "Stock Movement", purchase: "Purchase Requests", workflow: "Workflow", tasks: "My Tasks", approval: "Pending Approval", history: "History", knowledge: "Knowledge / Documents", ai: "AI Copilot", admin: "Administration" }[p] || p);
 
-function PageHead({ title, desc, children }) { return <div className="page-head"><div><div className="eyebrow">DX-LAB CORE</div><h1>{title}</h1><p>{desc}</p></div><div className="head-actions">{children}</div></div> }
-function Panel({ title, action, onAction, children, className = "" }) { return <section className={`panel ${className}`}><div className="panel-head"><h3>{title}</h3>{action && <button className="link-btn" onClick={onAction}>{action}<Icon name="ArrowUpRight" size={14} /></button>}</div>{children}</section> }
-function Stat({ title, value, delta, icon, danger }) { return <div className="stat"><div className={`stat-icon ${danger ? "danger" : ""}`}><Icon name={icon} /></div><div className="stat-main"><span>{title}</span><strong>{value}</strong><small className={danger ? "warn" : "positive"}>{delta}</small></div></div> }
+function PageRouter({ page, portal, user, onNavigate, showToast }) {
+  const allowed = menus[portal].find((item) => item.id === page);
+  if (!allowed || !permissionsByPortal[portal].has(allowed.permission)) return <AccessDenied />;
 
-function Dashboard({ setPage }) {
-    const low = products.filter(p => p.stock < p.reorder); return <div className="page">
-        <PageHead title="Dashboard" desc="Tổng quan hoạt động doanh nghiệp hôm nay."><button className="secondary"><Icon name="CalendarDays" /> 08 Sep 2026</button><button className="primary"><Icon name="Plus" /> Quick action</button></PageHead>
-        <div className="stats"><Stat title="Revenue" value="486.2M ₫" delta="+12.8% vs last month" icon="TrendingUp" /><Stat title="Orders" value="128" delta="+8.4% vs last month" icon="ShoppingBag" /><Stat title="Customers" value="1,284" delta="+5.1% vs last month" icon="Users" /><Stat title="Stock Alerts" value={low.length} delta="Needs attention" icon="TriangleAlert" danger /></div>
-        <div className="grid-2"><Panel title="Revenue overview" action="View report"><FakeChart /></Panel><Panel title="Pending approvals" action="View all" onAction={() => setPage("approval")}>{purchaseRequests.map(x => <ApprovalRow key={x.id} item={x} />)}</Panel></div>
-        <div className="grid-2"><Panel title="Inventory alerts" action="View stock" onAction={() => setPage("stock")}>{low.map(p => <div className="list-row" key={p.id}><div className="row-icon red"><Icon name="Package" /></div><div className="row-fill"><b>{p.name}</b><small>{p.id} · Reorder level {p.reorder}</small></div><strong className="danger-text">{p.stock} left</strong></div>)}</Panel>
-            <Panel title="Recent activity" action="View history" onAction={() => setPage("history")}>{activities.map((a, i) => <div className="activity" key={i}><span>{a[0]}</span><div className="activity-dot" /><div><b>{a[1]}</b><small>{a[2]}</small></div></div>)}</Panel></div>
+  if (portal === "employee") {
+    if (page === "pos") return <PointOfSale user={user} showToast={showToast} />;
+    if (page === "catalog") return <CatalogPage />;
+    if (page === "promotions") return <PromotionsPage />;
+    if (page === "my-orders") return <OrdersPage employee user={user} />;
+    if (page === "customers") return <CustomersPage canWrite={false} showToast={showToast} />;
+  }
+
+  if (page === "overview") return <AdminOverview onNavigate={onNavigate} />;
+  if (page === "revenue") return <RevenuePage />;
+  if (page === "orders") return <OrdersPage showToast={showToast} />;
+  if (page === "products") return <ProductsPage showToast={showToast} />;
+  if (page === "customers") return <CustomersPage canWrite showToast={showToast} />;
+  if (page === "inventory") return <InventoryPage showToast={showToast} />;
+  if (page === "users") return <UsersPage showToast={showToast} />;
+  if (page === "settings") return <SettingsPage showToast={showToast} />;
+  return <AccessDenied />;
+}
+
+function PageHeading({ eyebrow, title, description, children }) {
+  return <div className="page-heading"><div><span>{eyebrow}</span><h2>{title}</h2><p>{description}</p></div>{children && <div className="page-actions">{children}</div>}</div>;
+}
+
+function AdminOverview({ onNavigate }) {
+  const lowStock = products.filter((product) => product.stock <= product.reorder);
+  return (
+    <div className="page-stack">
+      <PageHeading eyebrow="QUẢN TRỊ VIÊN" title="Tổng quan kinh doanh" description="Theo dõi doanh thu, đơn hàng và các vấn đề cần xử lý trong tháng 9.">
+        <button className="secondary-button"><Icon name="CalendarDays" size={17} /> Tháng 09/2026</button>
+        <button className="primary-button" onClick={() => onNavigate("revenue")}><Icon name="BarChart3" size={17} /> Xem báo cáo</button>
+      </PageHeading>
+      <div className="metric-grid">
+        <MetricCard icon="WalletCards" label="Doanh thu tháng" value="486,2 triệu ₫" change="+12,8% so với tháng 8" tone="blue" />
+        <MetricCard icon="ShoppingBag" label="Đơn đã bán" value="128" change="18 đơn trong hôm nay" tone="violet" />
+        <MetricCard icon="UsersRound" label="Khách hàng" value="1.284" change="+32 khách hàng mới" tone="green" />
+        <MetricCard icon="TriangleAlert" label="Cảnh báo tồn kho" value={String(lowStock.length)} change="Cần bổ sung sớm" tone="orange" />
+      </div>
+      <div className="dashboard-grid">
+        <Panel title="Xu hướng doanh thu" subtitle="6 tháng gần nhất" action="Chi tiết" onAction={() => onNavigate("revenue")}>
+          <RevenueBars compact />
+        </Panel>
+        <Panel title="Sản phẩm bán chạy" subtitle="Theo số lượng tháng này">
+          <div className="top-products">
+            {[...products].sort((a, b) => b.sold - a.sold).slice(0, 4).map((product, index) => (
+              <div key={product.id}><span className="rank">{index + 1}</span><span className="product-avatar"><Icon name="Package" size={18} /></span><div><b>{product.name}</b><small>{product.category}</small></div><strong>{product.sold} đã bán</strong></div>
+            ))}
+          </div>
+        </Panel>
+      </div>
+      <Panel title="Đơn hàng gần đây" subtitle="Cập nhật theo dữ liệu bán hàng" action="Xem tất cả" onAction={() => onNavigate("orders")}>
+        <OrdersTable data={orders.slice(0, 4)} />
+      </Panel>
     </div>
+  );
 }
-function FakeChart() { return <div className="chart"><div className="chart-value">486.2M ₫ <span>+12.8%</span></div><svg viewBox="0 0 600 170" preserveAspectRatio="none"><defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopOpacity=".22" /><stop offset="1" stopOpacity="0" /></linearGradient></defs><path d="M0 135 L55 120 L100 128 L150 91 L205 105 L255 63 L310 77 L365 52 L420 65 L470 35 L525 46 L600 18 L600 170 L0 170Z" fill="url(#g)" /><polyline points="0,135 55,120 100,128 150,91 205,105 255,63 310,77 365,52 420,65 470,35 525,46 600,18" fill="none" stroke="currentColor" strokeWidth="4" /></svg><div className="chart-labels"><span>10 Aug</span><span>17 Aug</span><span>24 Aug</span><span>31 Aug</span><span>07 Sep</span></div></div> }
-function ApprovalRow({ item }) { return <div className="approval-row"><div className="approval-avatar"><Icon name="FileCheck" /></div><div className="approval-info"><b>{item.id}</b><small>{item.item} · {item.qty} units</small></div><div className="approval-right"><b>{money(item.value)}</b><Badge tone={tone(item.status)}>{item.status}</Badge></div></div> }
 
-function DataPage({ type, onAdd }) { const configs = { customers: { title: "Customers", desc: "Quản lý khách hàng và thông tin liên hệ.", data: customers, cols: ["ID", "Customer", "Contact", "Phone", "Tier", "Status"] }, products: { title: "Products", desc: "Danh mục sản phẩm, giá và tồn kho.", data: products, cols: ["ID", "Product", "Category", "Price", "Stock", "Status"] }, orders: { title: "Sales Orders", desc: "Theo dõi đơn hàng và trạng thái xử lý.", data: orders, cols: ["Order ID", "Customer", "Value", "Status", "Date"] }, quotations: { title: "Quotations", desc: "Báo giá và cơ hội bán hàng.", data: orders.slice(0, 3).map((x, i) => ({ ...x, id: `QT-2026-00${18 - i}`, status: i === 0 ? "Sent" : "Draft" })), cols: ["Quote ID", "Customer", "Value", "Status", "Date"] }, stock: { title: "Stock", desc: "Tồn kho và mức reorder của sản phẩm.", data: products, cols: ["ID", "Product", "Category", "Stock", "Reorder", "Status"] }, movement: { title: "Stock Movement", desc: "Lịch sử nhập và xuất kho.", data: orders.map((x, i) => ({ id: `MV-${102 - i}`, item: products[i].name, type: i % 2 ? "OUT" : "IN", qty: (i + 1) * 8, date: x.date, ref: x.id })), cols: ["Movement", "Item", "Type", "Qty", "Date", "Reference"] } }[type]; const [q, setQ] = useState(""); const filtered = configs.data.filter(r => JSON.stringify(r).toLowerCase().includes(q.toLowerCase())); return <div className="page"><PageHead title={configs.title} desc={configs.desc}><button className="secondary"><Icon name="Upload" /> Import</button><button className="primary" onClick={onAdd}><Icon name="Plus" /> Add new</button></PageHead><div className="toolbar"><div className="search"><Icon name="Search" size={17} /><input value={q} onChange={e => setQ(e.target.value)} placeholder={`Search ${configs.title.toLowerCase()}...`} /></div><button className="secondary"><Icon name="SlidersHorizontal" /> Filters</button><button className="secondary"><Icon name="Download" /> Export</button><span className="result-count">{filtered.length} records</span></div><div className="table-wrap"><table><thead><tr>{configs.cols.map(c => <th key={c}>{c}</th>)}</tr></thead><tbody>{filtered.map((r, i) => <tr key={i}>{configs.cols.map(c => <td key={c}>{cell(c, r)}</td>)}</tr>)}</tbody></table></div></div> }
-function cell(c, r) { let v = { ID: r.id, Customer: r.name || r.customer, Contact: r.contact, Phone: r.phone, Tier: r.tier, Status: r.status, Product: r.name, Category: r.category, Price: r.price ? money(r.price) : null, Stock: r.stock, Reorder: r.reorder, "Order ID": r.id, "Quote ID": r.id, Value: r.value ? money(r.value) : null, Date: r.date, Movement: r.id, Item: r.item, Type: r.type, Qty: r.qty, Reference: r.ref }[c]; if (c === "Status") return <Badge tone={tone(v)}>{v}</Badge>; if (c === "Stock") return <span className={r.stock < r.reorder ? "danger-text" : ""}>{v}</span>; if (c === "Type") return <Badge tone={v === "IN" ? "green" : "blue"}>{v}</Badge>; return v ?? "—"; }
+function MetricCard({ icon, label, value, change, tone }) {
+  return <article className="metric-card"><span className={`metric-icon ${tone}`}><Icon name={icon} /></span><div><span>{label}</span><strong>{value}</strong><small><Icon name="ArrowUpRight" size={13} />{change}</small></div></article>;
+}
 
-function OrderPage({ showToast }) { const [ordersState, setOrdersState] = useState(clone(orders)); const [open, setOpen] = useState(false); const [customer, setCustomer] = useState(customers[0].name); const [product, setProduct] = useState(products[0].name); const [qty, setQty] = useState(2); const selected = products.find(p => p.name === product); const total = (selected?.price || 0) * qty; const submit = () => { const id = `SO-2026-00${19 + ordersState.length}`; setOrdersState([{ id, customer, value: total, status: total >= 50000000 ? "Pending approval" : "Processing", date: "08/09/2026" }, ...ordersState]); setOpen(false); showToast("Sales Order đã được tạo thành công"); }; return <div className="page"><PageHead title="Sales Orders" desc="Tạo, theo dõi và quản lý đơn hàng bán."><button className="secondary"><Icon name="Download" /> Export</button><button className="primary" onClick={() => setOpen(true)}><Icon name="Plus" /> Create order</button></PageHead><div className="order-summary"><div><span>Today</span><b>18 orders</b></div><div><span>Processing</span><b>7</b></div><div><span>Pending approval</span><b>2</b></div><div><span>Completed</span><b>9</b></div></div><div className="table-wrap"><table><thead><tr><th>Order ID</th><th>Customer</th><th>Value</th><th>Status</th><th>Date</th><th>Action</th></tr></thead><tbody>{ordersState.map(r => <tr key={r.id}><td><b>{r.id}</b></td><td>{r.customer}</td><td><b>{money(r.value)}</b></td><td><Badge tone={tone(r.status)}>{r.status}</Badge></td><td>{r.date}</td><td><button className="table-action"><Icon name="MoreHorizontal" /></button></td></tr>)}</tbody></table></div>{open && <Modal title="Create Sales Order" onClose={() => setOpen(false)}><div className="form-grid"><Field label="Customer"><select value={customer} onChange={e => setCustomer(e.target.value)}>{customers.map(x => <option key={x.id}>{x.name}</option>)}</select></Field><Field label="Product"><select value={product} onChange={e => setProduct(e.target.value)}>{products.map(x => <option key={x.id}>{x.name}</option>)}</select></Field><Field label="Quantity"><input type="number" min="1" value={qty} onChange={e => setQty(Number(e.target.value) || 1)} /></Field><Field label="Unit price"><input value={money(selected?.price || 0)} disabled /></Field></div><div className="order-total"><span>Estimated total</span><strong>{money(total)}</strong></div><div className="modal-note"><Icon name="Info" /> Orders ≥ 50M ₫ will be shown as <b>Pending approval</b> in this frontend demo.</div><div className="modal-actions"><button className="secondary" onClick={() => setOpen(false)}>Cancel</button><button className="primary" onClick={submit}>Create order</button></div></Modal>}</div> }
+function RevenueBars({ compact = false }) {
+  const max = Math.max(...monthlyRevenue.map((item) => item.value));
+  return <div className={`revenue-bars ${compact ? "compact" : ""}`}><div className="bar-grid"><span>500M</span><span>375M</span><span>250M</span><span>125M</span><span>0</span></div><div className="bars">{monthlyRevenue.map((item) => <div className="bar-column" key={item.month}><div className="bar-tooltip">{item.value}M</div><i style={{ height: `${(item.value / max) * 100}%` }} className={item.month === "T9" ? "current" : ""} /><span>{item.month}</span></div>)}</div></div>;
+}
 
-function Purchase({ showToast }) { const [items, setItems] = useState(clone(purchaseRequests)); const act = (id, status) => { setItems(items.map(x => x.id === id ? { ...x, status } : x)); showToast(`Request ${id}: ${status}`) }; return <div className="page"><PageHead title="Purchase Requests" desc="Yêu cầu mua hàng và luồng phê duyệt."><button className="primary"><Icon name="Plus" /> Create request</button></PageHead><div className="request-grid">{items.map(x => <div className="request-card" key={x.id}><div className="request-top"><Badge tone={tone(x.status)}>{x.status}</Badge><span>{x.id}</span></div><h3>{x.item}</h3><p>{x.reason}</p><div className="request-meta"><span><Icon name="Package" /> {x.qty} units</span><span><Icon name="User" /> {x.requester}</span></div><div className="request-value">{money(x.value)}</div>{x.status === "Pending approval" && <div className="request-actions"><button className="danger-btn" onClick={() => act(x.id, "Rejected")}>Reject</button><button className="primary" onClick={() => act(x.id, "Approved")}>Approve</button></div>}</div>)}</div></div> }
+function RevenuePage() {
+  return (
+    <div className="page-stack">
+      <PageHeading eyebrow="BÁO CÁO QUẢN TRỊ" title="Doanh thu tháng 09/2026" description="Dữ liệu tài chính chỉ hiển thị cho tài khoản quản trị.">
+        <button className="secondary-button"><Icon name="Download" size={17} /> Xuất báo cáo</button>
+      </PageHeading>
+      <div className="financial-banner">
+        <div><span>TỔNG DOANH THU</span><strong>486.200.000 ₫</strong><small><Icon name="TrendingUp" size={16} /> Tăng 12,8% so với tháng trước</small></div>
+        <div className="financial-split"><div><span>Giá vốn ước tính</span><b>291,7 triệu ₫</b></div><div><span>Lợi nhuận gộp</span><b>194,5 triệu ₫</b></div><div><span>Biên lợi nhuận</span><b>40,0%</b></div></div>
+      </div>
+      <Panel title="Doanh thu theo tháng" subtitle="Đơn vị: triệu đồng"><RevenueBars /></Panel>
+      <div className="dashboard-grid revenue-detail">
+        <Panel title="Theo nhóm sản phẩm"><BreakdownRow label="Laptop & Máy tính" value="214,8 triệu" percent={44} /><BreakdownRow label="Màn hình" value="112,4 triệu" percent={23} /><BreakdownRow label="Phụ kiện" value="96,1 triệu" percent={20} /><BreakdownRow label="Khác" value="62,9 triệu" percent={13} /></Panel>
+        <Panel title="Chỉ số bán hàng"><div className="report-list"><div><span>Giá trị đơn trung bình</span><b>3.798.000 ₫</b></div><div><span>Tỷ lệ hoàn thành</span><b>92,4%</b></div><div><span>Đơn chờ duyệt</span><b>4 đơn</b></div><div><span>Hoàn / hủy</span><b>3 đơn</b></div></div></Panel>
+      </div>
+    </div>
+  );
+}
 
-function Approval({ showToast }) { const [items, setItems] = useState(clone(purchaseRequests)); const act = (id, status) => { setItems(items.map(x => x.id === id ? { ...x, status } : x)); showToast(`${id} đã được ${status === "Approved" ? "phê duyệt" : "từ chối"}`) }; return <div className="page"><PageHead title="Approval Center" desc="Human-in-the-loop: review trước các hành động nhạy cảm."><Badge tone="yellow">{items.filter(x => x.status === "Pending approval").length} pending</Badge></PageHead><Panel title="Requests requiring your attention"><div className="approval-list">{items.map(x => <div className="approval-card" key={x.id}><div className="approval-icon"><Icon name="ClipboardCheck" /></div><div className="approval-detail"><div className="approval-id">{x.id} · Purchase Request</div><h3>{x.item}</h3><p>{x.reason}. Created by <b>{x.requester}</b>.</p><div className="chips"><span>{x.qty} units</span><span>{money(x.value)}</span><span>Audit trail enabled</span></div></div>{x.status === "Pending approval" ? <div className="approval-buttons"><button className="danger-btn" onClick={() => act(x.id, "Rejected")}>Reject</button><button className="primary" onClick={() => act(x.id, "Approved")}>Approve</button></div> : <Badge tone={tone(x.status)}>{x.status}</Badge>}</div>)}</div></Panel></div> }
+function BreakdownRow({ label, value, percent }) {
+  return <div className="breakdown-row"><div><span>{label}</span><b>{value}</b></div><div className="progress"><i style={{ width: `${percent}%` }} /></div><small>{percent}%</small></div>;
+}
 
-function AI() { const [messages, setMessages] = useState([{ from: "ai", text: "Xin chào! Tôi là DX Copilot. Hãy hỏi tôi về tồn kho, đơn hàng hoặc khách hàng." }]); const [text, setText] = useState(""); const send = () => { if (!text.trim()) return; const t = text.trim(); let ans = t.toLowerCase().includes("tồn") ? "Tôi tìm thấy 2 sản phẩm dưới reorder level: Laptop Pro 14 (12/20) và Keyboard Mechanical (7/10). Tôi có thể tạo Purchase Request ở trạng thái PENDING để Manager phê duyệt." : t.toLowerCase().includes("đơn") ? "Hiện có 4 Sales Orders trong dữ liệu demo, trong đó SO-2026-0015 đang Pending approval." : "Tôi đã nhận yêu cầu. Khi tích hợp Backend, câu trả lời sẽ lấy dữ liệu thật thông qua các tool được cấp quyền."; setMessages(m => [...m, { from: "user", text: t }, { from: "ai", text: ans }]); setText("") }; return <div className="page"><PageHead title="AI Copilot" desc="Trợ lý AI cho dữ liệu doanh nghiệp và tác vụ có HITL."><Badge tone="blue">Frontend demo</Badge></PageHead><div className="ai-layout"><div className="chat panel"><div className="chat-head"><div className="ai-orb"><Icon name="Sparkles" /></div><div><b>DX Copilot</b><small>Data-aware assistant</small></div></div><div className="quick-prompts">{["Sản phẩm nào sắp hết hàng?", "Có đơn hàng nào cần duyệt?", "Tạo đề xuất mua Laptop Pro"].map(x => <button key={x} onClick={() => { setText(x) }}>{x}</button>)}</div><div className="messages">{messages.map((m, i) => <div className={`message ${m.from}`} key={i}><div>{m.text}</div></div>)}</div><div className="chat-input"><input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} placeholder="Ask about inventory, orders, customers..." /><button className="primary" onClick={send}><Icon name="Send" /></button></div></div><div className="panel tool-panel"><div className="panel-head"><h3>Available tools</h3><Badge tone="green">3 tools</Badge></div><Tool icon="Search" title="get_low_stock_products()" desc="Đọc sản phẩm dưới reorder level." /><Tool icon="FilePlus2" title="create_purchase_request()" desc="Tạo DRAFT/PENDING, không phát hành PO trực tiếp." /><Tool icon="Database" title="get_sales_orders()" desc="Đọc đơn hàng và trạng thái." /><div className="security-note"><Icon name="ShieldCheck" /><div><b>Permission boundary</b><small>Sensitive write actions require validation + human approval.</small></div></div></div></div></div> }
-function Tool({ icon, title, desc }) { return <div className="tool"><div className="tool-icon"><Icon name={icon} /></div><div><b>{title}</b><small>{desc}</small></div></div> }
+function PointOfSale({ user, showToast }) {
+  const [query, setQuery] = useState("");
+  const [cart, setCart] = useState([]);
+  const [customer, setCustomer] = useState("Khách lẻ");
+  const visibleProducts = products.filter((product) => `${product.name} ${product.category}`.toLowerCase().includes(query.toLowerCase()));
+  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-function Field({ label, children }) { return <label className="field"><span>{label}</span>{children}</label> }
-function Modal({ title, onClose, children }) { return <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && onClose()}><div className="modal"><div className="modal-head"><h2>{title}</h2><button className="icon-btn" onClick={onClose}><Icon name="X" /></button></div>{children}</div></div> }
+  const addToCart = (product) => setCart((current) => {
+    const existing = current.find((item) => item.id === product.id);
+    if (existing) return current.map((item) => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+    return [...current, { ...product, quantity: 1 }];
+  });
+  const changeQuantity = (id, change) => setCart((current) => current.map((item) => item.id === id ? { ...item, quantity: item.quantity + change } : item).filter((item) => item.quantity > 0));
+  const checkout = () => {
+    if (!cart.length) return;
+    showToast(`Đã tạo đơn bán hàng ${formatMoney(total)} cho ${customer}.`);
+    setCart([]);
+  };
 
-function Simple({ title, desc, icon = "Construction", action }) { return <div className="page empty-page"><div className="empty-icon"><Icon name={icon} size={32} /></div><h1>{title}</h1><p>{desc}</p><Badge tone="blue">Frontend prototype</Badge>{action && <button className="primary" onClick={action}><Icon name="Plus" /> Create demo item</button>}</div> }
+  return (
+    <div className="page-stack">
+      <PageHeading eyebrow="KHU VỰC NHÂN VIÊN" title={`Chào ${user?.FullName || user?.Username || "bạn"}, bắt đầu bán hàng`} description="Chọn sản phẩm, xác nhận khách hàng và hoàn tất đơn ngay tại quầy." />
+      <div className="pos-layout">
+        <section className="pos-products">
+          <div className="pos-toolbar"><div className="search-box"><Icon name="Search" size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm sản phẩm hoặc danh mục..." /></div><span>{visibleProducts.length} sản phẩm</span></div>
+          <div className="product-grid">
+            {visibleProducts.map((product) => (
+              <article className="product-card" key={product.id}>
+                <div className="product-visual"><Icon name={product.category === "Laptop" ? "Laptop" : product.category === "Màn hình" ? "Monitor" : "Package"} size={34} /><span className={product.stock <= product.reorder ? "low" : ""}>{product.stock} còn lại</span></div>
+                <small>{product.id} · {product.category}</small><h3>{product.name}</h3><div><strong>{formatMoney(product.price)}</strong><button onClick={() => addToCart(product)} aria-label={`Thêm ${product.name}`}><Icon name="Plus" size={19} /></button></div>
+              </article>
+            ))}
+          </div>
+        </section>
+        <aside className="cart-panel">
+          <div className="cart-head"><div><span>ĐƠN HÀNG HIỆN TẠI</span><h3>Giỏ hàng</h3></div><b>{cart.reduce((sum, item) => sum + item.quantity, 0)}</b></div>
+          <label className="cart-customer"><span>Khách hàng</span><select value={customer} onChange={(event) => setCustomer(event.target.value)}><option>Khách lẻ</option>{customers.map((item) => <option key={item.id}>{item.name}</option>)}</select></label>
+          <div className="cart-items">
+            {!cart.length && <div className="empty-cart"><Icon name="ShoppingBasket" size={34} /><b>Giỏ hàng đang trống</b><span>Chọn sản phẩm để bắt đầu bán hàng.</span></div>}
+            {cart.map((item) => <div className="cart-item" key={item.id}><div><b>{item.name}</b><span>{formatMoney(item.price)}</span></div><div className="quantity"><button onClick={() => changeQuantity(item.id, -1)}><Icon name="Minus" size={14} /></button><span>{item.quantity}</span><button onClick={() => changeQuantity(item.id, 1)}><Icon name="Plus" size={14} /></button></div></div>)}
+          </div>
+          <div className="cart-summary"><div><span>Tạm tính</span><b>{formatMoney(total)}</b></div><div><span>Giảm giá</span><b>0 ₫</b></div><div className="cart-total"><span>Tổng thanh toán</span><strong>{formatMoney(total)}</strong></div><button className="checkout-button" disabled={!cart.length} onClick={checkout}><Icon name="CreditCard" size={19} /> Thanh toán</button><small><Icon name="ShieldCheck" size={14} /> Nhân viên chỉ được tạo đơn, không thể sửa giá sản phẩm.</small></div>
+        </aside>
+      </div>
+    </div>
+  );
+}
 
-export default function App() { const [logged, setLogged] = useState(false), [user, setUser] = useState(null), [page, setPage] = useState("dashboard"), [collapsed, setCollapsed] = useState(false), [toast, setToast] = useState(""); const role = user?.RoleID || "Manager"; const showToast = m => { setToast(m); setTimeout(() => setToast(""), 2600) }; if (!logged) return <Login onLogin={u => { setUser(u); setLogged(true) }} />; let content; if (page === "dashboard") content = <Dashboard setPage={setPage} />; else if (["customers", "products", "quotations", "stock", "movement"].includes(page)) content = <DataPage type={page} onAdd={() => showToast("Form demo sẽ được kết nối API sau")} />; else if (page === "orders") content = <OrderPage showToast={showToast} />; else if (page === "purchase") content = <Purchase showToast={showToast} />; else if (page === "approval") content = <Approval showToast={showToast} />; else if (page === "ai") content = <AI />; else if (page === "tasks") content = <Simple title="My Tasks" desc="Các nhiệm vụ workflow được giao cho người dùng hiện tại." icon="ListChecks" />; else if (page === "history") content = <Simple title="Workflow History" desc="Audit trail của các request và workflow." icon="History" />; else if (page === "knowledge") content = <Simple title="Knowledge / Documents" desc="Kho tài liệu phục vụ tìm kiếm và RAG." icon="BookOpen" />; else if (page === "admin") content = <Simple title="Administration" desc="Users, Roles và System Configuration." icon="Settings" />; else content = <Simple title={pageLabel(page)} desc="Khu vực quản lý của DX-Lab Core." />; return <div className="app"><Sidebar page={page} setPage={setPage} collapsed={collapsed} setCollapsed={setCollapsed} role={role} /><main className="main"><Topbar role={role} page={page} user={user} onLogout={() => { setLogged(false); setUser(null); }} />{content}</main>{toast && <div className="toast"><Icon name="CheckCircle2" />{toast}</div>}</div> }
+function CatalogPage() {
+  const [query, setQuery] = useState("");
+  const filtered = products.filter((product) => JSON.stringify(product).toLowerCase().includes(query.toLowerCase()));
+  return <div className="page-stack"><PageHeading eyebrow="TRA CỨU" title="Danh mục sản phẩm" description="Nhân viên được xem giá và tồn kho nhưng không thể thêm, sửa hoặc xóa sản phẩm." /><TableToolbar query={query} onQuery={setQuery} placeholder="Tìm sản phẩm..." count={filtered.length} /><div className="table-card"><table><thead><tr><th>Mã</th><th>Sản phẩm</th><th>Danh mục</th><th>Giá bán</th><th>Tồn kho</th><th>Trạng thái</th></tr></thead><tbody>{filtered.map((product) => <tr key={product.id}><td><b>{product.id}</b></td><td>{product.name}</td><td>{product.category}</td><td><b>{formatMoney(product.price)}</b></td><td>{product.stock}</td><td><StatusBadge value={product.status} /></td></tr>)}</tbody></table></div></div>;
+}
+
+function PromotionsPage() {
+  return <div className="page-stack"><PageHeading eyebrow="HỖ TRỢ BÁN HÀNG" title="Chương trình khuyến mãi" description="Các chương trình đang áp dụng để nhân viên tư vấn cho khách hàng." /><div className="promotion-grid">{promotions.map((promotion) => <article className={`promotion-card ${promotion.color}`} key={promotion.id}><div><span>{promotion.tag}</span><Icon name="Sparkles" /></div><small>{promotion.expires}</small><h3>{promotion.title}</h3><p>{promotion.description}</p><button>Tư vấn ngay <Icon name="ArrowRight" size={16} /></button></article>)}</div><div className="information-card"><Icon name="CircleHelp" /><div><b>Nhân viên cần lưu ý</b><p>Khuyến mãi chỉ được áp dụng theo điều kiện hệ thống. Mọi thay đổi chương trình phải do Admin thực hiện.</p></div></div></div>;
+}
+
+function OrdersPage({ employee = false, user, showToast }) {
+  const visibleOrders = employee ? orders.filter((order) => order.seller.toLowerCase().includes((user?.FullName || "Hoàn").split(" ").slice(-1)[0].toLowerCase())).slice(0, 4) : orders;
+  return <div className="page-stack"><PageHeading eyebrow={employee ? "CÁ NHÂN" : "QUẢN TRỊ ĐƠN HÀNG"} title={employee ? "Đơn hàng của tôi" : "Tất cả đơn hàng"} description={employee ? "Chỉ hiển thị các đơn do tài khoản hiện tại tạo." : "Theo dõi và xử lý toàn bộ đơn hàng trong hệ thống."}>{!employee && <button className="primary-button" onClick={() => showToast?.("Chức năng tạo đơn quản trị sẽ kết nối API ở bước sau.")}><Icon name="Plus" size={17} /> Tạo đơn</button>}</PageHeading><div className="order-summary"><div><span>Hôm nay</span><b>18 đơn</b></div><div><span>Hoàn thành</span><b>14 đơn</b></div><div><span>Đang xử lý</span><b>3 đơn</b></div><div><span>Chờ duyệt</span><b>1 đơn</b></div></div><Panel title={employee ? "Lịch sử bán hàng" : "Danh sách đơn hàng"}>{visibleOrders.length ? <OrdersTable data={visibleOrders} showSeller={!employee} admin={!employee} /> : <div className="empty-table"><Icon name="ReceiptText" size={28} /><b>Chưa có đơn hàng</b><span>Tài khoản này chưa tạo đơn nào.</span></div>}</Panel></div>;
+}
+
+function OrdersTable({ data, showSeller = true, admin = false }) {
+  return <div className="table-scroll"><table><thead><tr><th>Mã đơn</th><th>Khách hàng</th>{showSeller && <th>Nhân viên</th>}<th>Giá trị</th><th>Trạng thái</th><th>Ngày</th>{admin && <th />}</tr></thead><tbody>{data.map((order) => <tr key={order.id}><td><b>{order.id}</b></td><td>{order.customer}</td>{showSeller && <td>{order.seller}</td>}<td><b>{formatMoney(order.value)}</b></td><td><StatusBadge value={order.status} /></td><td>{order.date}</td>{admin && <td><button className="row-action"><Icon name="Ellipsis" size={18} /></button></td>}</tr>)}</tbody></table></div>;
+}
+
+function ProductsPage({ showToast }) {
+  const [items, setItems] = useState(products);
+  const [query, setQuery] = useState("");
+  const filtered = items.filter((product) => JSON.stringify(product).toLowerCase().includes(query.toLowerCase()));
+  const remove = (id) => { setItems((current) => current.filter((item) => item.id !== id)); showToast("Đã xóa sản phẩm trong dữ liệu giao diện mẫu."); };
+  return <div className="page-stack"><PageHeading eyebrow="QUẢN LÝ DANH MỤC" title="Sản phẩm" description="Admin có thể thêm, sửa và xóa sản phẩm."><button className="primary-button" onClick={() => showToast("Biểu mẫu thêm sản phẩm sẽ kết nối API ở bước backend.")}><Icon name="Plus" size={17} /> Thêm sản phẩm</button></PageHeading><TableToolbar query={query} onQuery={setQuery} placeholder="Tìm sản phẩm..." count={filtered.length} /><div className="table-card"><table><thead><tr><th>Mã</th><th>Sản phẩm</th><th>Giá bán</th><th>Tồn kho</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>{filtered.map((product) => <tr key={product.id}><td><b>{product.id}</b></td><td><div className="table-primary"><span><Icon name="Package" size={17} /></span><div><b>{product.name}</b><small>{product.category}</small></div></div></td><td><b>{formatMoney(product.price)}</b></td><td>{product.stock}</td><td><StatusBadge value={product.status} /></td><td><div className="row-actions"><button onClick={() => showToast(`Mở biểu mẫu sửa ${product.name}.`)} title="Sửa"><Icon name="Pencil" size={16} /></button><button className="delete" onClick={() => remove(product.id)} title="Xóa"><Icon name="Trash2" size={16} /></button></div></td></tr>)}</tbody></table></div></div>;
+}
+
+function CustomersPage({ canWrite, showToast }) {
+  const [items, setItems] = useState(customers);
+  const [query, setQuery] = useState("");
+  const filtered = items.filter((customer) => JSON.stringify(customer).toLowerCase().includes(query.toLowerCase()));
+  return <div className="page-stack"><PageHeading eyebrow={canWrite ? "QUẢN LÝ DỮ LIỆU" : "TRA CỨU"} title="Khách hàng" description={canWrite ? "Thêm, cập nhật và quản lý hồ sơ khách hàng." : "Tra cứu thông tin phục vụ bán hàng; không có quyền sửa dữ liệu."}>{canWrite && <button className="primary-button" onClick={() => showToast("Biểu mẫu khách hàng sẽ kết nối API ở bước backend.")}><Icon name="UserPlus" size={17} /> Thêm khách hàng</button>}</PageHeading><TableToolbar query={query} onQuery={setQuery} placeholder="Tìm khách hàng..." count={filtered.length} /><div className="table-card"><table><thead><tr><th>Mã</th><th>Khách hàng</th><th>Người liên hệ</th><th>Điện thoại</th><th>Hạng</th><th>Trạng thái</th>{canWrite && <th>Thao tác</th>}</tr></thead><tbody>{filtered.map((customer) => <tr key={customer.id}><td><b>{customer.id}</b></td><td>{customer.name}</td><td>{customer.contact}</td><td>{customer.phone}</td><td><span className="tier-badge">{customer.tier}</span></td><td><StatusBadge value={customer.status} /></td>{canWrite && <td><div className="row-actions"><button onClick={() => showToast(`Mở hồ sơ ${customer.name}.`)}><Icon name="Pencil" size={16} /></button><button className="delete" onClick={() => { setItems((current) => current.filter((item) => item.id !== customer.id)); showToast("Đã xóa khách hàng trong dữ liệu giao diện mẫu."); }}><Icon name="Trash2" size={16} /></button></div></td>}</tr>)}</tbody></table></div></div>;
+}
+
+function InventoryPage({ showToast }) {
+  return <div className="page-stack"><PageHeading eyebrow="VẬN HÀNH KHO" title="Quản lý tồn kho" description="Admin theo dõi số lượng và thực hiện điều chỉnh kho."><button className="primary-button" onClick={() => showToast("Phiếu điều chỉnh kho sẽ kết nối API ở bước backend.")}><Icon name="ArrowLeftRight" size={17} /> Điều chỉnh kho</button></PageHeading><div className="metric-grid compact-metrics"><MetricCard icon="Boxes" label="Tổng mặt hàng" value="216" change="6 nhóm sản phẩm" tone="blue" /><MetricCard icon="PackageCheck" label="Đủ hàng" value="198" change="91,7% danh mục" tone="green" /><MetricCard icon="TriangleAlert" label="Sắp hết" value="16" change="Cần tạo yêu cầu mua" tone="orange" /><MetricCard icon="PackageX" label="Hết hàng" value="2" change="Cần xử lý ngay" tone="violet" /></div><Panel title="Cảnh báo tồn kho" subtitle="Sản phẩm dưới mức nhập lại"><div className="stock-list">{products.filter((product) => product.stock <= product.reorder).map((product) => <div key={product.id}><span className="stock-icon"><Icon name="TriangleAlert" size={18} /></span><div><b>{product.name}</b><small>{product.id} · Mức nhập lại {product.reorder}</small></div><strong>{product.stock} còn lại</strong><button onClick={() => showToast(`Đã tạo yêu cầu nhập ${product.name} ở giao diện mẫu.`)}>Tạo yêu cầu</button></div>)}</div></Panel></div>;
+}
+
+function UsersPage({ showToast }) {
+  const [items, setItems] = useState(employees);
+  return <div className="page-stack"><PageHeading eyebrow="QUẢN TRỊ HỆ THỐNG" title="Tài khoản và vai trò" description="Chỉ Admin được tạo tài khoản quản trị, đổi vai trò hoặc khóa người dùng."><button className="primary-button" onClick={() => showToast("Biểu mẫu cấp tài khoản sẽ kết nối API quản trị.")}><Icon name="UserPlus" size={17} /> Cấp tài khoản</button></PageHeading><div className="permission-callout"><Icon name="ShieldAlert" /><div><b>Nguyên tắc phân quyền</b><p>Frontend chỉ ẩn chức năng để cải thiện trải nghiệm. Backend vẫn phải kiểm tra JWT, trạng thái tài khoản và quyền trên mọi API ghi dữ liệu.</p></div></div><div className="table-card"><table><thead><tr><th>Người dùng</th><th>Tên đăng nhập</th><th>Vai trò</th><th>Trạng thái</th><th>Đăng nhập gần nhất</th><th>Thao tác</th></tr></thead><tbody>{items.map((employee) => <tr key={employee.id}><td><div className="table-primary"><span className="person-avatar">{employee.name.split(" ").slice(-1)[0][0]}</span><b>{employee.name}</b></div></td><td>{employee.username}</td><td><RoleBadge role={employee.role} /></td><td><StatusBadge value={employee.status} /></td><td>{employee.lastLogin}</td><td><div className="row-actions"><button onClick={() => showToast(`Mở phân quyền của ${employee.name}.`)}><Icon name="KeyRound" size={16} /></button><button onClick={() => { setItems((current) => current.map((item) => item.id === employee.id ? { ...item, status: item.status === "Active" ? "Locked" : "Active" } : item)); showToast("Đã thay đổi trạng thái trong giao diện mẫu."); }}><Icon name={employee.status === "Active" ? "Lock" : "LockOpen"} size={16} /></button></div></td></tr>)}</tbody></table></div></div>;
+}
+
+function SettingsPage({ showToast }) {
+  return <div className="page-stack"><PageHeading eyebrow="CẤU HÌNH" title="Cài đặt hệ thống" description="Thiết lập chung dành riêng cho quản trị viên." /><div className="settings-grid"><SettingCard icon="Building2" title="Thông tin doanh nghiệp" description="Tên đơn vị, địa chỉ, mã số thuế và nhận diện." action="Cấu hình" onClick={() => showToast("Mở cấu hình doanh nghiệp.")} /><SettingCard icon="BadgePercent" title="Khuyến mãi" description="Tạo và điều chỉnh chương trình bán hàng." action="Quản lý" onClick={() => showToast("Mở quản lý khuyến mãi.")} /><SettingCard icon="BellRing" title="Thông báo" description="Cảnh báo tồn kho, đơn hàng và phê duyệt." action="Thiết lập" onClick={() => showToast("Mở thiết lập thông báo.")} /><SettingCard icon="ScrollText" title="Nhật ký hoạt động" description="Theo dõi thao tác nhạy cảm của người dùng." action="Xem nhật ký" onClick={() => showToast("Audit log sẽ được làm ở bước RBAC backend.")} /></div></div>;
+}
+
+function SettingCard({ icon, title, description, action, onClick }) {
+  return <article className="setting-card"><span><Icon name={icon} /></span><div><h3>{title}</h3><p>{description}</p><button onClick={onClick}>{action} <Icon name="ArrowRight" size={15} /></button></div></article>;
+}
+
+function TableToolbar({ query, onQuery, placeholder, count }) {
+  return <div className="table-toolbar"><div className="search-box"><Icon name="Search" size={18} /><input value={query} onChange={(event) => onQuery(event.target.value)} placeholder={placeholder} /></div><button className="secondary-button"><Icon name="ListFilter" size={17} /> Bộ lọc</button><span>{count} bản ghi</span></div>;
+}
+
+function Panel({ title, subtitle, action, onAction, children }) {
+  return <section className="panel-card"><div className="panel-heading"><div><h3>{title}</h3>{subtitle && <span>{subtitle}</span>}</div>{action && <button onClick={onAction}>{action}<Icon name="ArrowUpRight" size={15} /></button>}</div>{children}</section>;
+}
+
+function StatusBadge({ value }) {
+  const normalized = String(value).toLowerCase();
+  const tone = /active|hoạt động|hoàn thành|còn hàng/.test(normalized) ? "success" : /locked|hết|hủy|từ chối/.test(normalized) ? "danger" : "warning";
+  return <span className={`status-badge ${tone}`}><i />{value}</span>;
+}
+
+function RoleBadge({ role }) {
+  return <span className={`role-badge ${portalFromRole(role) === "admin" ? "admin" : "employee"}`}><Icon name={portalFromRole(role) === "admin" ? "ShieldCheck" : "BadgeCheck"} size={14} />{role}</span>;
+}
+
+function AccessDenied() {
+  return <div className="access-denied"><span><Icon name="ShieldX" size={36} /></span><h2>Không có quyền truy cập</h2><p>Tài khoản hiện tại không được phép mở khu vực này.</p></div>;
+}
+
+function Modal({ title, onClose, children, narrow = false }) {
+  return <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className={`modal ${narrow ? "narrow" : ""}`} role="dialog" aria-modal="true" aria-label={title}><div className="modal-header"><div><span>DX-LAB CORE</span><h2>{title}</h2></div><button onClick={onClose} aria-label="Đóng"><Icon name="X" /></button></div>{children}</section></div>;
+}
+
+export default function App() {
+  const [session, setSession] = useState(null);
+
+  if (!session) {
+    return <LoginScreen onAuthenticated={(user, portal) => setSession({ user, portal })} />;
+  }
+
+  return <Workspace user={session.user} portal={session.portal} onLogout={() => setSession(null)} />;
+}
