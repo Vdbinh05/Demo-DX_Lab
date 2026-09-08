@@ -10,9 +10,27 @@ DX-Lab Core gồm frontend React + Vite và backend xác thực FastAPI + SQL Se
 - Visual Studio Code
 - Internet để npm tải package lần đầu
 
-## Chạy backend
+## Khởi động nhanh trên Windows
 
-Thiết lập thông tin SQL Server bằng biến môi trường. Không commit mật khẩu thật vào Git:
+Lần đầu tiên, nhấp đúp `CAI_DAT_LAN_DAU.bat` hoặc chạy:
+
+```powershell
+.\CAI_DAT_LAN_DAU.bat
+```
+
+Script sẽ tạo `.venv`, cài thư viện frontend/backend và tạo `backend/.env` từ tệp mẫu. Nhập mật khẩu SQL Server thật vào `backend/.env` khi Notepad mở ra. Tệp `.env` đã được `.gitignore` bảo vệ và không được commit.
+
+Từ lần chạy tiếp theo, chỉ cần nhấp đúp `CHAY_DU_AN.bat` hoặc chạy:
+
+```powershell
+.\CHAY_DU_AN.bat
+```
+
+Hai cửa sổ sẽ được mở: FastAPI tại `http://localhost:8000` và React tại `http://localhost:5173`. SQL Server vẫn phải đang hoạt động.
+
+## Chạy backend thủ công
+
+FastAPI tự đọc `backend/.env` thông qua `python-dotenv`. Nếu không muốn dùng `.env`, có thể thiết lập thông tin SQL Server bằng biến môi trường. Không commit mật khẩu thật vào Git:
 
 ```powershell
 $env:DXLAB_SQL_SERVER="localhost"

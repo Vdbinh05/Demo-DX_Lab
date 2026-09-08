@@ -20,4 +20,10 @@ DX-Lab Core tham khảo các dự án mã nguồn mở sau trong quá trình thi
 - License: MIT
 - Source: <https://github.com/mui/material-ui>
 
+## python-dotenv
+
+- Copyright (c) 2014 Saurabh Kumar và các cộng tác viên
+- License: BSD-3-Clause
+- Source: <https://github.com/theskumar/python-dotenv>
+
 Xem chi tiết cách các nguồn được áp dụng tại `docs/OPEN_SOURCE_REFERENCES.md`.

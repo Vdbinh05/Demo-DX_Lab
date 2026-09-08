@@ -25,6 +25,13 @@ Tài liệu này ghi lại các dự án mã nguồn mở được dùng làm t�
 - Phần tham khảo: bố cục sidebar, top bar, thẻ KPI, bảng quản trị và dashboard responsive.
 - Cách áp dụng: DX-Lab Core tự xây dựng component và CSS riêng, không chép nguyên template hoặc thêm Material UI vào dependency.
 
+## 4. python-dotenv
+
+- Repository: <https://github.com/theskumar/python-dotenv>
+- Giấy phép: BSD-3-Clause
+- Phần sử dụng: đọc các biến kết nối SQL Server từ `backend/.env` trong môi trường phát triển.
+- Cách áp dụng: FastAPI nạp tệp `.env` nằm cạnh `backend/main.py`; biến môi trường của hệ điều hành vẫn được ưu tiên và tệp chứa mật khẩu thật không được commit.
+
 ## Nguyên tắc sử dụng
 
 - Chỉ sử dụng repository có giấy phép rõ ràng.

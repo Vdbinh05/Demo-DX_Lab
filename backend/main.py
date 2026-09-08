@@ -7,11 +7,18 @@ import logging
 import os
 import re
 import secrets
+from pathlib import Path
 
 import pyodbc
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+
+# Tự đọc cấu hình phát triển cục bộ. Các biến môi trường đã được hệ thống
+# thiết lập vẫn được ưu tiên vì load_dotenv không ghi đè mặc định.
+load_dotenv(dotenv_path=Path(__file__).with_name(".env"))
 
 
 app = FastAPI()
