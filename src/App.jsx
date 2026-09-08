@@ -1,108 +1,241 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import * as Icons from "lucide-react";
 import { menu, customers, products, orders, purchaseRequests, activities } from "./data";
 
 const money = n => new Intl.NumberFormat("vi-VN").format(n) + " ₫";
 const clone = x => JSON.parse(JSON.stringify(x));
 
-function Icon({name,size=18}){const C=Icons[name]||Icons.Circle;return <C size={size} strokeWidth={1.8}/>;}
-function Badge({children,tone}){return <span className={`badge ${tone||"gray"}`}>{children}</span>}
-function tone(s){if(/approved|completed|active|in stock|sent/i.test(s))return"green";if(/pending|processing|draft|low/i.test(s))return"yellow";if(/rejected|out/i.test(s))return"red";return"blue";}
+function Icon({ name, size = 18 }) { const C = Icons[name] || Icons.Circle; return <C size={size} strokeWidth={1.8} />; }
+function Badge({ children, tone }) { return <span className={`badge ${tone || "gray"}`}>{children}</span> }
+function tone(s) { if (/approved|completed|active|in stock|sent/i.test(s)) return "green"; if (/pending|processing|draft|low/i.test(s)) return "yellow"; if (/rejected|out/i.test(s)) return "red"; return "blue"; }
 
-function Login({onLogin}){
- const [role,setRole]=useState("Manager");
- const [registerOpen,setRegisterOpen]=useState(false);
- const [registered,setRegistered]=useState(false);
- return <div className="login-page">
-  <div className="login-deco login-deco-tl"/><div className="login-deco login-deco-br"/>
-  <div className="login-dots login-dots-left"/><div className="login-dots login-dots-right"/>
-  <div className="login-shell">
-   <div className="login-brand">
-    <div className="login-logo"><span className="cube-top"/><span className="cube-left"/><span className="cube-right"/></div>
-    <div><strong>DX-LAB CORE</strong><small>Digital Workspace for Open Source Team</small></div>
-   </div>
-   <div className="login-card login-card-wide">
-    <div className="login-visual">
-     <div className="visual-cloud"><Icon name="Cloud" size={38}/></div>
-     <div className="visual-gear"><Icon name="Settings" size={27}/></div>
-     <div className="visual-shield"><Icon name="ShieldCheck" size={27}/></div>
-     <div className="visual-user"><Icon name="UserRound" size={22}/></div>
-     <div className="visual-leaf leaf-one"/><div className="visual-leaf leaf-two"/><div className="visual-leaf leaf-three"/>
-     <div className="dashboard-illustration">
-      <div className="monitor">
-       <div className="monitor-top"><span/><span/><span/></div>
-       <div className="monitor-body"><div className="mini-sidebar"><i/><i/><i/><i/><i/></div><div className="mini-content"><div className="mini-title"/><div className="mini-cards"><i/><i/><i/></div><div className="mini-chart"><span/><span/><span/><span/><span/></div></div></div>
-      </div>
-      <div className="monitor-stand"/>
-      <div className="phone"><div className="phone-notch"/><div className="phone-line"/><div className="phone-card"/><div className="phone-card small"/><div className="phone-card small"/></div>
-      <div className="plant-pot"><div className="plant-stem"/><div className="plant-pot-body"/></div>
-      <div className="visual-books"><i/><i/><i/></div><div className="visual-bars"><i/><i/><i/><i/></div>
-     </div>
-     <div className="visual-ground"/>
-    </div>
-    <div className="login-form">
-     <div className="login-title">Đăng nhập hệ thống</div>
-     <p className="login-subtitle">Đăng nhập để truy cập không gian làm việc DX-Lab Core.</p>
-     <div className="login-field"><Icon name="UserRound" size={18}/><input aria-label="Tên đăng nhập" placeholder="Tên đăng nhập" autoComplete="username"/></div>
-     <div className="login-field"><Icon name="LockKeyhole" size={18}/><input aria-label="Mật khẩu" type="password" placeholder="Mật khẩu" autoComplete="current-password"/><Icon name="Eye" size={18}/></div>
-     <div className="login-options"><label><input type="checkbox"/> <span>Ghi nhớ đăng nhập</span></label><button type="button" className="forgot">Quên mật khẩu?</button></div>
-     <button className="primary full login-sso" onClick={()=>onLogin(role)}><Icon name="ShieldCheck" size={19}/> Đăng nhập SSO</button>
-     <div className="login-register"><span>Chưa có tài khoản?</span><button type="button" onClick={()=>{setRegisterOpen(true);setRegistered(false)}}>Tạo tài khoản</button></div>
-     <div className="demo-role"><span>Vai trò demo</span><select value={role} onChange={e=>setRole(e.target.value)}>{["CEO","Manager","Sales","Warehouse"].map(x=><option key={x}>{x}</option>)}</select></div>
-    </div>
-    <div className="login-features">
-     <div><Icon name="ShieldCheck" size={27}/><span>Single Sign-On</span></div><i/><div><Icon name="Shield" size={27}/><span>Keycloak</span></div><i/><div><Icon name="UsersRound" size={27}/><span>Phân quyền theo vai trò</span></div>
-    </div>
-   </div>
-    {registerOpen&&<Modal title="Tạo tài khoản" onClose={()=>setRegisterOpen(false)}>
-      {!registered?<><div className="register-intro">Tạo tài khoản để sử dụng DX-Lab Core. Tài khoản thật sẽ được kết nối với Keycloak khi tích hợp backend.</div><div className="form-grid"><Field label="Họ và tên"><input placeholder="Nguyễn Văn A"/></Field><Field label="Tên đăng nhập"><input placeholder="nguyenvana" autoComplete="username"/></Field><Field label="Email"><input type="email" placeholder="name@company.com" autoComplete="email"/></Field><Field label="Vai trò"><select defaultValue="Sales">{["Manager","Sales","Warehouse"].map(x=><option key={x}>{x}</option>)}</select></Field><Field label="Mật khẩu"><input type="password" placeholder="Tối thiểu 8 ký tự" autoComplete="new-password"/></Field><Field label="Xác nhận mật khẩu"><input type="password" placeholder="Nhập lại mật khẩu" autoComplete="new-password"/></Field></div><div className="modal-actions"><button className="secondary" onClick={()=>setRegisterOpen(false)}>Hủy</button><button className="primary" onClick={()=>setRegistered(true)}><Icon name="UserPlus"/> Tạo tài khoản</button></div></>:<div className="register-success"><div className="register-success-icon"><Icon name="CheckCircle2" size={30}/></div><h3>Tạo tài khoản thành công</h3><p>Tài khoản demo đã được ghi nhận. Bạn có thể đóng cửa sổ này và đăng nhập.</p><button className="primary" onClick={()=>setRegisterOpen(false)}>Đóng</button></div>}
-    </Modal>}
-  </div>
- </div>
+const API_BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/$/, "");
+const LOGIN_API_URL = `${API_BASE_URL}/login`;
+const REGISTER_API_URL = `${API_BASE_URL}/register`;
+const EMPTY_REGISTER_FORM = { fullName: "", username: "", roleId: "Sales", password: "", confirmPassword: "" };
+
+function apiErrorMessage(data, fallback) {
+    const detail = data?.message ?? data?.detail;
+    if (typeof detail === "string") return detail;
+    if (Array.isArray(detail)) return detail.map(item => item?.msg).filter(Boolean).join("; ") || fallback;
+    return fallback;
 }
 
-function Sidebar({page,setPage,collapsed,setCollapsed,role}){return <aside className={`sidebar ${collapsed?"collapsed":""}`}>
- <div className="side-top"><div className="brand"><span className="brand-mark">DX</span>{!collapsed&&<div><b>DX-Lab Core</b><small>Portal v0.1</small></div>}</div><button className="icon-btn" onClick={()=>setCollapsed(!collapsed)}><Icon name={collapsed?"PanelLeftOpen":"PanelLeftClose"}/></button></div>
- <div className="workspace">{!collapsed&&<><span>WORKSPACE</span><b>{role} Workspace</b></>}</div>
- <nav>{menu.map(m=><React.Fragment key={m.id}><button className={`nav-item ${page===m.id?"active":""}`} onClick={()=>setPage(m.id)}><Icon name={m.icon}/>{!collapsed&&<span>{m.label}</span>}</button>{!collapsed&&m.children&&<div className="subnav">{m.children.map(([id,label])=><button className={`sub-item ${page===id?"active":""}`} onClick={()=>setPage(id)} key={id}>{label}</button>)}</div>}</React.Fragment>)}</nav>
- {!collapsed&&<div className="side-footer"><div className="health-dot"/><span>All systems operational</span></div>}
- </aside>}
+function Login({ onLogin }) {
+    const [role, setRole] = useState("Manager");
+    const [registerOpen, setRegisterOpen] = useState(false);
+    const [registered, setRegistered] = useState(false);
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [registerForm, setRegisterForm] = useState(() => ({ ...EMPTY_REGISTER_FORM }));
+    const [registerError, setRegisterError] = useState("");
+    const [registerLoading, setRegisterLoading] = useState(false);
 
-function Topbar({role,page,onLogout,setPage}){return <header className="topbar"><div><div className="breadcrumb">DX-Lab Core <span>/</span> <b>{pageLabel(page)}</b></div></div><div className="top-actions">
- <button className="icon-btn"><Icon name="Search"/></button><button className="icon-btn notification"><Icon name="Bell"/><i>3</i></button>
- <div className="user-menu"><div className="avatar">YN</div><div className="user-text"><b>Yuugi</b><small>{role}</small></div><button className="icon-btn" onClick={onLogout}><Icon name="LogOut" size={16}/></button></div>
- </div></header>}
-const pageLabel=p=>({dashboard:"Dashboard",sales:"Sales",customers:"Customers",products:"Products",orders:"Sales Orders",quotations:"Quotations",inventory:"Inventory",stock:"Stock",movement:"Stock Movement",purchase:"Purchase Requests",workflow:"Workflow",tasks:"My Tasks",approval:"Pending Approval",history:"History",knowledge:"Knowledge / Documents",ai:"AI Copilot",admin:"Administration"}[p]||p);
+    const handleLogin = async () => {
+        setError("");
+        if (!username.trim() || !password) { setError("Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu."); return; }
+        setLoading(true);
+        try {
+            const res = await fetch(LOGIN_API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username: username.trim(), password })
+            });
+            const data = await res.json().catch(() => null);
+            if (res.ok && data?.success) {
+                onLogin(data.user);
+            } else {
+                setError(apiErrorMessage(data, "Sai tên đăng nhập hoặc mật khẩu."));
+            }
+        } catch (err) {
+            setError("Không thể kết nối tới server FastAPI (cổng 8000). Bạn có thể chọn 'Vào demo' bên dưới nếu chưa bật backend.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
-function PageHead({title,desc,children}){return <div className="page-head"><div><div className="eyebrow">DX-LAB CORE</div><h1>{title}</h1><p>{desc}</p></div><div className="head-actions">{children}</div></div>}
-function Panel({title,action,onAction,children,className=""}){return <section className={`panel ${className}`}><div className="panel-head"><h3>{title}</h3>{action&&<button className="link-btn" onClick={onAction}>{action}<Icon name="ArrowUpRight" size={14}/></button>}</div>{children}</section>}
-function Stat({title,value,delta,icon,danger}){return <div className="stat"><div className={`stat-icon ${danger?"danger":""}`}><Icon name={icon}/></div><div className="stat-main"><span>{title}</span><strong>{value}</strong><small className={danger?"warn":"positive"}>{delta}</small></div></div>}
+    const openRegister = () => {
+        setRegisterForm({ ...EMPTY_REGISTER_FORM });
+        setRegisterError("");
+        setRegistered(false);
+        setRegisterOpen(true);
+    };
 
-function Dashboard({setPage}){const low=products.filter(p=>p.stock<p.reorder);return <div className="page">
- <PageHead title="Dashboard" desc="Tổng quan hoạt động doanh nghiệp hôm nay."><button className="secondary"><Icon name="CalendarDays"/> 08 Sep 2026</button><button className="primary"><Icon name="Plus"/> Quick action</button></PageHead>
- <div className="stats"><Stat title="Revenue" value="486.2M ₫" delta="+12.8% vs last month" icon="TrendingUp"/><Stat title="Orders" value="128" delta="+8.4% vs last month" icon="ShoppingBag"/><Stat title="Customers" value="1,284" delta="+5.1% vs last month" icon="Users"/><Stat title="Stock Alerts" value={low.length} delta="Needs attention" icon="TriangleAlert" danger/></div>
- <div className="grid-2"><Panel title="Revenue overview" action="View report"><FakeChart/></Panel><Panel title="Pending approvals" action="View all" onAction={()=>setPage("approval")}>{purchaseRequests.map(x=><ApprovalRow key={x.id} item={x}/>)}</Panel></div>
- <div className="grid-2"><Panel title="Inventory alerts" action="View stock" onAction={()=>setPage("stock")}>{low.map(p=><div className="list-row" key={p.id}><div className="row-icon red"><Icon name="Package"/></div><div className="row-fill"><b>{p.name}</b><small>{p.id} · Reorder level {p.reorder}</small></div><strong className="danger-text">{p.stock} left</strong></div>)}</Panel>
- <Panel title="Recent activity" action="View history" onAction={()=>setPage("history")}>{activities.map((a,i)=><div className="activity" key={i}><span>{a[0]}</span><div className="activity-dot"/><div><b>{a[1]}</b><small>{a[2]}</small></div></div>)}</Panel></div>
- </div>}
-function FakeChart(){return <div className="chart"><div className="chart-value">486.2M ₫ <span>+12.8%</span></div><svg viewBox="0 0 600 170" preserveAspectRatio="none"><defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopOpacity=".22"/><stop offset="1" stopOpacity="0"/></linearGradient></defs><path d="M0 135 L55 120 L100 128 L150 91 L205 105 L255 63 L310 77 L365 52 L420 65 L470 35 L525 46 L600 18 L600 170 L0 170Z" fill="url(#g)"/><polyline points="0,135 55,120 100,128 150,91 205,105 255,63 310,77 365,52 420,65 470,35 525,46 600,18" fill="none" stroke="currentColor" strokeWidth="4"/></svg><div className="chart-labels"><span>10 Aug</span><span>17 Aug</span><span>24 Aug</span><span>31 Aug</span><span>07 Sep</span></div></div>}
-function ApprovalRow({item}){return <div className="approval-row"><div className="approval-avatar"><Icon name="FileCheck"/></div><div className="approval-info"><b>{item.id}</b><small>{item.item} · {item.qty} units</small></div><div className="approval-right"><b>{money(item.value)}</b><Badge tone={tone(item.status)}>{item.status}</Badge></div></div>}
+    const updateRegisterField = (field, value) => {
+        setRegisterForm(current => ({ ...current, [field]: value }));
+    };
 
-function DataPage({type,onAdd}){const configs={customers:{title:"Customers",desc:"Quản lý khách hàng và thông tin liên hệ.",data:customers,cols:["ID","Customer","Contact","Phone","Tier","Status"]},products:{title:"Products",desc:"Danh mục sản phẩm, giá và tồn kho.",data:products,cols:["ID","Product","Category","Price","Stock","Status"]},orders:{title:"Sales Orders",desc:"Theo dõi đơn hàng và trạng thái xử lý.",data:orders,cols:["Order ID","Customer","Value","Status","Date"]},quotations:{title:"Quotations",desc:"Báo giá và cơ hội bán hàng.",data:orders.slice(0,3).map((x,i)=>({...x,id:`QT-2026-00${18-i}`,status:i===0?"Sent":"Draft"})),cols:["Quote ID","Customer","Value","Status","Date"]},stock:{title:"Stock",desc:"Tồn kho và mức reorder của sản phẩm.",data:products,cols:["ID","Product","Category","Stock","Reorder","Status"]},movement:{title:"Stock Movement",desc:"Lịch sử nhập và xuất kho.",data:orders.map((x,i)=>({id:`MV-${102-i}`,item:products[i].name,type:i%2?"OUT":"IN",qty:(i+1)*8,date:x.date,ref:x.id})),cols:["Movement","Item","Type","Qty","Date","Reference"]}}[type];const[q,setQ]=useState("");const filtered=configs.data.filter(r=>JSON.stringify(r).toLowerCase().includes(q.toLowerCase()));return <div className="page"><PageHead title={configs.title} desc={configs.desc}><button className="secondary"><Icon name="Upload"/> Import</button><button className="primary" onClick={onAdd}><Icon name="Plus"/> Add new</button></PageHead><div className="toolbar"><div className="search"><Icon name="Search" size={17}/><input value={q} onChange={e=>setQ(e.target.value)} placeholder={`Search ${configs.title.toLowerCase()}...`}/></div><button className="secondary"><Icon name="SlidersHorizontal"/> Filters</button><button className="secondary"><Icon name="Download"/> Export</button><span className="result-count">{filtered.length} records</span></div><div className="table-wrap"><table><thead><tr>{configs.cols.map(c=><th key={c}>{c}</th>)}</tr></thead><tbody>{filtered.map((r,i)=><tr key={i}>{configs.cols.map(c=><td key={c}>{cell(c,r)}</td>)}</tr>)}</tbody></table></div></div>}
-function cell(c,r){let v={ID:r.id,Customer:r.name||r.customer,Contact:r.contact,Phone:r.phone,Tier:r.tier,Status:r.status,Product:r.name,Category:r.category,Price:r.price?money(r.price):null,Stock:r.stock,Reorder:r.reorder,"Order ID":r.id,"Quote ID":r.id,Value:r.value?money(r.value):null,Date:r.date,Movement:r.id,Item:r.item,Type:r.type,Qty:r.qty,Reference:r.ref}[c];if(c==="Status")return <Badge tone={tone(v)}>{v}</Badge>;if(c==="Stock")return <span className={r.stock<r.reorder?"danger-text":""}>{v}</span>;if(c==="Type")return <Badge tone={v==="IN"?"green":"blue"}>{v}</Badge>;return v??"—";}
+    const handleRegister = async event => {
+        event?.preventDefault();
+        setRegisterError("");
 
-function OrderPage({showToast}){const [ordersState,setOrdersState]=useState(clone(orders));const [open,setOpen]=useState(false);const [customer,setCustomer]=useState(customers[0].name);const [product,setProduct]=useState(products[0].name);const [qty,setQty]=useState(2);const selected=products.find(p=>p.name===product);const total=(selected?.price||0)*qty;const submit=()=>{const id=`SO-2026-00${19+ordersState.length}`;setOrdersState([{id,customer,value:total,status:total>=50000000?"Pending approval":"Processing",date:"08/09/2026"},...ordersState]);setOpen(false);showToast("Sales Order đã được tạo thành công");};return <div className="page"><PageHead title="Sales Orders" desc="Tạo, theo dõi và quản lý đơn hàng bán."><button className="secondary"><Icon name="Download"/> Export</button><button className="primary" onClick={()=>setOpen(true)}><Icon name="Plus"/> Create order</button></PageHead><div className="order-summary"><div><span>Today</span><b>18 orders</b></div><div><span>Processing</span><b>7</b></div><div><span>Pending approval</span><b>2</b></div><div><span>Completed</span><b>9</b></div></div><div className="table-wrap"><table><thead><tr><th>Order ID</th><th>Customer</th><th>Value</th><th>Status</th><th>Date</th><th>Action</th></tr></thead><tbody>{ordersState.map(r=><tr key={r.id}><td><b>{r.id}</b></td><td>{r.customer}</td><td><b>{money(r.value)}</b></td><td><Badge tone={tone(r.status)}>{r.status}</Badge></td><td>{r.date}</td><td><button className="table-action"><Icon name="MoreHorizontal"/></button></td></tr>)}</tbody></table></div>{open&&<Modal title="Create Sales Order" onClose={()=>setOpen(false)}><div className="form-grid"><Field label="Customer"><select value={customer} onChange={e=>setCustomer(e.target.value)}>{customers.map(x=><option key={x.id}>{x.name}</option>)}</select></Field><Field label="Product"><select value={product} onChange={e=>setProduct(e.target.value)}>{products.map(x=><option key={x.id}>{x.name}</option>)}</select></Field><Field label="Quantity"><input type="number" min="1" value={qty} onChange={e=>setQty(Number(e.target.value)||1)}/></Field><Field label="Unit price"><input value={money(selected?.price||0)} disabled/></Field></div><div className="order-total"><span>Estimated total</span><strong>{money(total)}</strong></div><div className="modal-note"><Icon name="Info"/> Orders ≥ 50M ₫ will be shown as <b>Pending approval</b> in this frontend demo.</div><div className="modal-actions"><button className="secondary" onClick={()=>setOpen(false)}>Cancel</button><button className="primary" onClick={submit}>Create order</button></div></Modal>}</div>}
+        const fullName = registerForm.fullName.trim();
+        const registerUsername = registerForm.username.trim();
+        if (!fullName || !registerUsername || !registerForm.password || !registerForm.confirmPassword) {
+            setRegisterError("Vui lòng nhập đầy đủ thông tin đăng ký.");
+            return;
+        }
+        if (!/^[A-Za-z0-9._-]{3,50}$/.test(registerUsername)) {
+            setRegisterError("Tên đăng nhập phải có 3-50 ký tự và chỉ gồm chữ không dấu, số, dấu chấm, gạch dưới hoặc gạch ngang.");
+            return;
+        }
+        if (registerForm.password.length < 8) {
+            setRegisterError("Mật khẩu phải có ít nhất 8 ký tự.");
+            return;
+        }
+        if (registerForm.password !== registerForm.confirmPassword) {
+            setRegisterError("Mật khẩu xác nhận không khớp.");
+            return;
+        }
 
-function Purchase({showToast}){const [items,setItems]=useState(clone(purchaseRequests));const act=(id,status)=>{setItems(items.map(x=>x.id===id?{...x,status}:x));showToast(`Request ${id}: ${status}`)};return <div className="page"><PageHead title="Purchase Requests" desc="Yêu cầu mua hàng và luồng phê duyệt."><button className="primary"><Icon name="Plus"/> Create request</button></PageHead><div className="request-grid">{items.map(x=><div className="request-card" key={x.id}><div className="request-top"><Badge tone={tone(x.status)}>{x.status}</Badge><span>{x.id}</span></div><h3>{x.item}</h3><p>{x.reason}</p><div className="request-meta"><span><Icon name="Package"/> {x.qty} units</span><span><Icon name="User"/> {x.requester}</span></div><div className="request-value">{money(x.value)}</div>{x.status==="Pending approval"&&<div className="request-actions"><button className="danger-btn" onClick={()=>act(x.id,"Rejected")}>Reject</button><button className="primary" onClick={()=>act(x.id,"Approved")}>Approve</button></div>}</div>)}</div></div>}
+        setRegisterLoading(true);
+        try {
+            const res = await fetch(REGISTER_API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    full_name: fullName,
+                    username: registerUsername,
+                    password: registerForm.password,
+                    role_id: registerForm.roleId
+                })
+            });
+            const data = await res.json().catch(() => null);
+            if (res.ok && data?.success) {
+                setUsername(data.user?.Username || registerUsername);
+                setPassword("");
+                setRegistered(true);
+            } else {
+                setRegisterError(apiErrorMessage(data, "Không thể tạo tài khoản."));
+            }
+        } catch (err) {
+            setRegisterError("Không thể kết nối tới server FastAPI (cổng 8000).");
+        } finally {
+            setRegisterLoading(false);
+        }
+    };
 
-function Approval({showToast}){const [items,setItems]=useState(clone(purchaseRequests));const act=(id,status)=>{setItems(items.map(x=>x.id===id?{...x,status}:x));showToast(`${id} đã được ${status==="Approved"?"phê duyệt":"từ chối"}`)};return <div className="page"><PageHead title="Approval Center" desc="Human-in-the-loop: review trước các hành động nhạy cảm."><Badge tone="yellow">{items.filter(x=>x.status==="Pending approval").length} pending</Badge></PageHead><Panel title="Requests requiring your attention"><div className="approval-list">{items.map(x=><div className="approval-card" key={x.id}><div className="approval-icon"><Icon name="ClipboardCheck"/></div><div className="approval-detail"><div className="approval-id">{x.id} · Purchase Request</div><h3>{x.item}</h3><p>{x.reason}. Created by <b>{x.requester}</b>.</p><div className="chips"><span>{x.qty} units</span><span>{money(x.value)}</span><span>Audit trail enabled</span></div></div>{x.status==="Pending approval"?<div className="approval-buttons"><button className="danger-btn" onClick={()=>act(x.id,"Rejected")}>Reject</button><button className="primary" onClick={()=>act(x.id,"Approved")}>Approve</button></div>:<Badge tone={tone(x.status)}>{x.status}</Badge>}</div>)}</div></Panel></div>}
+    return <div className="login-page">
+        <div className="login-deco login-deco-tl" /><div className="login-deco login-deco-br" />
+        <div className="login-dots login-dots-left" /><div className="login-dots login-dots-right" />
+        <div className="login-shell">
+            <div className="login-brand">
+                <div className="login-logo"><span className="cube-top" /><span className="cube-left" /><span className="cube-right" /></div>
+                <div><strong>DX-LAB CORE</strong><small>Digital Workspace for Open Source Team</small></div>
+            </div>
+            <div className="login-card login-card-wide">
+                <div className="login-visual">
+                    <div className="visual-cloud"><Icon name="Cloud" size={38} /></div>
+                    <div className="visual-gear"><Icon name="Settings" size={27} /></div>
+                    <div className="visual-shield"><Icon name="ShieldCheck" size={27} /></div>
+                    <div className="visual-user"><Icon name="UserRound" size={22} /></div>
+                    <div className="visual-leaf leaf-one" /><div className="visual-leaf leaf-two" /><div className="visual-leaf leaf-three" />
+                    <div className="dashboard-illustration">
+                        <div className="monitor">
+                            <div className="monitor-top"><span /><span /><span /></div>
+                            <div className="monitor-body"><div className="mini-sidebar"><i /><i /><i /><i /><i /></div><div className="mini-content"><div className="mini-title" /><div className="mini-cards"><i /><i /><i /></div><div className="mini-chart"><span /><span /><span /><span /><span /></div></div></div>
+                        </div>
+                        <div className="monitor-stand" />
+                        <div className="phone"><div className="phone-notch" /><div className="phone-line" /><div className="phone-card" /><div className="phone-card small" /><div className="phone-card small" /></div>
+                        <div className="plant-pot"><div className="plant-stem" /><div className="plant-pot-body" /></div>
+                        <div className="visual-books"><i /><i /><i /></div><div className="visual-bars"><i /><i /><i /><i /></div>
+                    </div>
+                    <div className="visual-ground" />
+                </div>
+                <div className="login-form">
+                    <div className="login-title">Đăng nhập hệ thống</div>
+                    <p className="login-subtitle">Đăng nhập để truy cập không gian làm việc DX-Lab Core.</p>
+                    {error && <div className="login-error">{error}</div>}
+                    <div className="login-field"><Icon name="UserRound" size={18} /><input aria-label="Tên đăng nhập" placeholder="Tên đăng nhập" autoComplete="username" value={username} onChange={e => setUsername(e.target.value)} onKeyDown={e => e.key === "Enter" && handleLogin()} /></div>
+                    <div className="login-field"><Icon name="LockKeyhole" size={18} /><input aria-label="Mật khẩu" type={showPassword ? "text" : "password"} placeholder="Mật khẩu" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === "Enter" && handleLogin()} /><button type="button" style={{ background: "none", padding: 0, color: "inherit", display: "grid", placeItems: "center" }} onClick={() => setShowPassword(!showPassword)}><Icon name={showPassword ? "EyeOff" : "Eye"} size={18} /></button></div>
+                    <div className="login-options"><label><input type="checkbox" /> <span>Ghi nhớ đăng nhập</span></label><button type="button" className="forgot">Quên mật khẩu?</button></div>
+                    <button className="primary full login-sso" onClick={handleLogin} disabled={loading}><Icon name="ShieldCheck" size={19} /> {loading ? "Đang đăng nhập..." : "Đăng nhập SSO"}</button>
+                    <div className="login-register"><span>Chưa có tài khoản?</span><button type="button" onClick={openRegister}>Tạo tài khoản</button></div>
+                    <div className="demo-role"><span>Vai trò demo</span><select value={role} onChange={e => setRole(e.target.value)}>{["CEO", "Manager", "Sales", "Warehouse"].map(x => <option key={x}>{x}</option>)}</select><button type="button" onClick={() => onLogin({ FullName: `${role} User`, RoleID: role })}>Vào demo</button></div>
+                </div>
+                <div className="login-features">
+                    <div><Icon name="ShieldCheck" size={27} /><span>Single Sign-On</span></div><i /><div><Icon name="Shield" size={27} /><span>Keycloak</span></div><i /><div><Icon name="UsersRound" size={27} /><span>Phân quyền theo vai trò</span></div>
+                </div>
+            </div>
+            {registerOpen && <Modal title="Tạo tài khoản" onClose={() => !registerLoading && setRegisterOpen(false)}>
+                {!registered ? <form onSubmit={handleRegister}>
+                    <div className="register-intro">Tạo tài khoản để sử dụng DX-Lab Core. Thông tin sẽ được lưu trực tiếp vào SQL Server.</div>
+                    <div className="form-grid">
+                        <Field label="Họ và tên"><input placeholder="Nguyễn Văn A" value={registerForm.fullName} onChange={e => updateRegisterField("fullName", e.target.value)} maxLength={100} required /></Field>
+                        <Field label="Tên đăng nhập"><input placeholder="nguyenvana" autoComplete="username" value={registerForm.username} onChange={e => updateRegisterField("username", e.target.value)} minLength={3} maxLength={50} required /></Field>
+                        <Field label="Vai trò"><select value={registerForm.roleId} onChange={e => updateRegisterField("roleId", e.target.value)}>{["Manager", "Sales", "Warehouse"].map(x => <option key={x}>{x}</option>)}</select></Field>
+                        <Field label="Mật khẩu"><input type="password" placeholder="Tối thiểu 8 ký tự" autoComplete="new-password" value={registerForm.password} onChange={e => updateRegisterField("password", e.target.value)} minLength={8} maxLength={128} required /></Field>
+                        <Field label="Xác nhận mật khẩu"><input type="password" placeholder="Nhập lại mật khẩu" autoComplete="new-password" value={registerForm.confirmPassword} onChange={e => updateRegisterField("confirmPassword", e.target.value)} minLength={8} maxLength={128} required /></Field>
+                    </div>
+                    {registerError && <div className="login-error register-error">{registerError}</div>}
+                    <div className="modal-actions">
+                        <button type="button" className="secondary" onClick={() => setRegisterOpen(false)} disabled={registerLoading}>Hủy</button>
+                        <button type="submit" className="primary" disabled={registerLoading}><Icon name="UserPlus" /> {registerLoading ? "Đang tạo..." : "Tạo tài khoản"}</button>
+                    </div>
+                </form> : <div className="register-success">
+                    <div className="register-success-icon"><Icon name="CheckCircle2" size={30} /></div>
+                    <h3>Tạo tài khoản thành công</h3>
+                    <p>Tài khoản <b>{registerForm.username.trim()}</b> đã được lưu vào SQL Server. Tên đăng nhập đã được điền sẵn cho bạn.</p>
+                    <button className="primary" onClick={() => setRegisterOpen(false)}>Đăng nhập ngay</button>
+                </div>}
+            </Modal>}
+        </div>
+    </div>
+}
 
-function AI(){const [messages,setMessages]=useState([{from:"ai",text:"Xin chào! Tôi là DX Copilot. Hãy hỏi tôi về tồn kho, đơn hàng hoặc khách hàng."}]);const[text,setText]=useState("");const send=()=>{if(!text.trim())return;const t=text.trim();let ans=t.toLowerCase().includes("tồn")?"Tôi tìm thấy 2 sản phẩm dưới reorder level: Laptop Pro 14 (12/20) và Keyboard Mechanical (7/10). Tôi có thể tạo Purchase Request ở trạng thái PENDING để Manager phê duyệt.":t.toLowerCase().includes("đơn")?"Hiện có 4 Sales Orders trong dữ liệu demo, trong đó SO-2026-0015 đang Pending approval.":"Tôi đã nhận yêu cầu. Khi tích hợp Backend, câu trả lời sẽ lấy dữ liệu thật thông qua các tool được cấp quyền.";setMessages(m=>[...m,{from:"user",text:t},{from:"ai",text:ans}]);setText("")};return <div className="page"><PageHead title="AI Copilot" desc="Trợ lý AI cho dữ liệu doanh nghiệp và tác vụ có HITL."><Badge tone="blue">Frontend demo</Badge></PageHead><div className="ai-layout"><div className="chat panel"><div className="chat-head"><div className="ai-orb"><Icon name="Sparkles"/></div><div><b>DX Copilot</b><small>Data-aware assistant</small></div></div><div className="quick-prompts">{["Sản phẩm nào sắp hết hàng?","Có đơn hàng nào cần duyệt?","Tạo đề xuất mua Laptop Pro"].map(x=><button key={x} onClick={()=>{setText(x)}}>{x}</button>)}</div><div className="messages">{messages.map((m,i)=><div className={`message ${m.from}`} key={i}><div>{m.text}</div></div>)}</div><div className="chat-input"><input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Ask about inventory, orders, customers..."/><button className="primary" onClick={send}><Icon name="Send"/></button></div></div><div className="panel tool-panel"><div className="panel-head"><h3>Available tools</h3><Badge tone="green">2 tools</Badge></div><Tool icon="Search" title="get_low_stock_products()" desc="Đọc sản phẩm dưới reorder level."/><Tool icon="FilePlus2" title="create_purchase_request()" desc="Tạo DRAFT/PENDING, không phát hành PO trực tiếp."/><Tool icon="Database" title="get_sales_orders()" desc="Đọc đơn hàng và trạng thái."/><div className="security-note"><Icon name="ShieldCheck"/><div><b>Permission boundary</b><small>Sensitive write actions require validation + human approval.</small></div></div></div></div></div>}
-function Tool({icon,title,desc}){return <div className="tool"><div className="tool-icon"><Icon name={icon}/></div><div><b>{title}</b><small>{desc}</small></div></div>}
+function Sidebar({ page, setPage, collapsed, setCollapsed, role }) {
+    return <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
+        <div className="side-top"><div className="brand"><span className="brand-mark">DX</span>{!collapsed && <div><b>DX-Lab Core</b><small>Portal v0.1</small></div>}</div><button className="icon-btn" onClick={() => setCollapsed(!collapsed)}><Icon name={collapsed ? "PanelLeftOpen" : "PanelLeftClose"} /></button></div>
+        <div className="workspace">{!collapsed && <><span>WORKSPACE</span><b>{role} Workspace</b></>}</div>
+        <nav>{menu.map(m => <React.Fragment key={m.id}><button className={`nav-item ${page === m.id ? "active" : ""}`} onClick={() => setPage(m.id)}><Icon name={m.icon} />{!collapsed && <span>{m.label}</span>}</button>{!collapsed && m.children && <div className="subnav">{m.children.map(([id, label]) => <button className={`sub-item ${page === id ? "active" : ""}`} onClick={() => setPage(id)} key={id}>{label}</button>)}</div>}</React.Fragment>)}</nav>
+        {!collapsed && <div className="side-footer"><div className="health-dot" /><span>All systems operational</span></div>}
+    </aside>
+}
 
-function Field({label,children}){return <label className="field"><span>{label}</span>{children}</label>}
-function Modal({title,onClose,children}){return <div className="modal-backdrop" onMouseDown={e=>e.target===e.currentTarget&&onClose()}><div className="modal"><div className="modal-head"><h2>{title}</h2><button className="icon-btn" onClick={onClose}><Icon name="X"/></button></div>{children}</div></div>}
+function Topbar({ role, page, onLogout, user }) {
+    const fullName = user?.FullName || user?.name || user?.username || "User";
+    const initials = fullName.trim().split(/\s+/).filter(Boolean).map(w => w[0]).slice(-2).join("").toUpperCase() || "U";
+    return <header className="topbar"><div><div className="breadcrumb">DX-Lab Core <span>/</span> <b>{pageLabel(page)}</b></div></div><div className="top-actions">
+        <button className="icon-btn"><Icon name="Search" /></button><button className="icon-btn notification"><Icon name="Bell" /><i>3</i></button>
+        <div className="user-menu"><div className="avatar">{initials}</div><div className="user-text"><b>{fullName}</b><small>{role}</small></div><button className="icon-btn" onClick={onLogout}><Icon name="LogOut" size={16} /></button></div>
+    </div></header>
+}
+const pageLabel = p => ({ dashboard: "Dashboard", sales: "Sales", customers: "Customers", products: "Products", orders: "Sales Orders", quotations: "Quotations", inventory: "Inventory", stock: "Stock", movement: "Stock Movement", purchase: "Purchase Requests", workflow: "Workflow", tasks: "My Tasks", approval: "Pending Approval", history: "History", knowledge: "Knowledge / Documents", ai: "AI Copilot", admin: "Administration" }[p] || p);
 
-function Simple({title,desc,icon="Construction",action}){return <div className="page empty-page"><div className="empty-icon"><Icon name={icon} size={32}/></div><h1>{title}</h1><p>{desc}</p><Badge tone="blue">Frontend prototype</Badge>{action&&<button className="primary" onClick={action}><Icon name="Plus"/> Create demo item</button>}</div>}
+function PageHead({ title, desc, children }) { return <div className="page-head"><div><div className="eyebrow">DX-LAB CORE</div><h1>{title}</h1><p>{desc}</p></div><div className="head-actions">{children}</div></div> }
+function Panel({ title, action, onAction, children, className = "" }) { return <section className={`panel ${className}`}><div className="panel-head"><h3>{title}</h3>{action && <button className="link-btn" onClick={onAction}>{action}<Icon name="ArrowUpRight" size={14} /></button>}</div>{children}</section> }
+function Stat({ title, value, delta, icon, danger }) { return <div className="stat"><div className={`stat-icon ${danger ? "danger" : ""}`}><Icon name={icon} /></div><div className="stat-main"><span>{title}</span><strong>{value}</strong><small className={danger ? "warn" : "positive"}>{delta}</small></div></div> }
 
-export default function App(){const[logged,setLogged]=useState(false),[role,setRole]=useState("Manager"),[page,setPage]=useState("dashboard"),[collapsed,setCollapsed]=useState(false),[toast,setToast]=useState("");const showToast=m=>{setToast(m);setTimeout(()=>setToast(""),2600)};if(!logged)return <Login onLogin={r=>{setRole(r);setLogged(true)}}/>;let content;if(page==="dashboard")content=<Dashboard setPage={setPage}/>;else if(["customers","products","quotations","stock","movement"].includes(page))content=<DataPage type={page} onAdd={()=>showToast("Form demo sẽ được kết nối API sau")}/>;else if(page==="orders")content=<OrderPage showToast={showToast}/>;else if(page==="purchase")content=<Purchase showToast={showToast}/>;else if(page==="approval")content=<Approval showToast={showToast}/>;else if(page==="ai")content=<AI/>;else if(page==="tasks")content=<Simple title="My Tasks" desc="Các nhiệm vụ workflow được giao cho người dùng hiện tại." icon="ListChecks"/>;else if(page==="history")content=<Simple title="Workflow History" desc="Audit trail của các request và workflow." icon="History"/>;else if(page==="knowledge")content=<Simple title="Knowledge / Documents" desc="Kho tài liệu phục vụ tìm kiếm và RAG." icon="BookOpen"/>;else if(page==="admin")content=<Simple title="Administration" desc="Users, Roles và System Configuration." icon="Settings"/>;else content=<Simple title={pageLabel(page)} desc="Khu vực quản lý của DX-Lab Core."/>;return <div className="app"><Sidebar page={page} setPage={setPage} collapsed={collapsed} setCollapsed={setCollapsed} role={role}/><main className="main"><Topbar role={role} page={page} onLogout={()=>setLogged(false)}/>{content}</main>{toast&&<div className="toast"><Icon name="CheckCircle2"/>{toast}</div>}</div>}
+function Dashboard({ setPage }) {
+    const low = products.filter(p => p.stock < p.reorder); return <div className="page">
+        <PageHead title="Dashboard" desc="Tổng quan hoạt động doanh nghiệp hôm nay."><button className="secondary"><Icon name="CalendarDays" /> 08 Sep 2026</button><button className="primary"><Icon name="Plus" /> Quick action</button></PageHead>
+        <div className="stats"><Stat title="Revenue" value="486.2M ₫" delta="+12.8% vs last month" icon="TrendingUp" /><Stat title="Orders" value="128" delta="+8.4% vs last month" icon="ShoppingBag" /><Stat title="Customers" value="1,284" delta="+5.1% vs last month" icon="Users" /><Stat title="Stock Alerts" value={low.length} delta="Needs attention" icon="TriangleAlert" danger /></div>
+        <div className="grid-2"><Panel title="Revenue overview" action="View report"><FakeChart /></Panel><Panel title="Pending approvals" action="View all" onAction={() => setPage("approval")}>{purchaseRequests.map(x => <ApprovalRow key={x.id} item={x} />)}</Panel></div>
+        <div className="grid-2"><Panel title="Inventory alerts" action="View stock" onAction={() => setPage("stock")}>{low.map(p => <div className="list-row" key={p.id}><div className="row-icon red"><Icon name="Package" /></div><div className="row-fill"><b>{p.name}</b><small>{p.id} · Reorder level {p.reorder}</small></div><strong className="danger-text">{p.stock} left</strong></div>)}</Panel>
+            <Panel title="Recent activity" action="View history" onAction={() => setPage("history")}>{activities.map((a, i) => <div className="activity" key={i}><span>{a[0]}</span><div className="activity-dot" /><div><b>{a[1]}</b><small>{a[2]}</small></div></div>)}</Panel></div>
+    </div>
+}
+function FakeChart() { return <div className="chart"><div className="chart-value">486.2M ₫ <span>+12.8%</span></div><svg viewBox="0 0 600 170" preserveAspectRatio="none"><defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopOpacity=".22" /><stop offset="1" stopOpacity="0" /></linearGradient></defs><path d="M0 135 L55 120 L100 128 L150 91 L205 105 L255 63 L310 77 L365 52 L420 65 L470 35 L525 46 L600 18 L600 170 L0 170Z" fill="url(#g)" /><polyline points="0,135 55,120 100,128 150,91 205,105 255,63 310,77 365,52 420,65 470,35 525,46 600,18" fill="none" stroke="currentColor" strokeWidth="4" /></svg><div className="chart-labels"><span>10 Aug</span><span>17 Aug</span><span>24 Aug</span><span>31 Aug</span><span>07 Sep</span></div></div> }
+function ApprovalRow({ item }) { return <div className="approval-row"><div className="approval-avatar"><Icon name="FileCheck" /></div><div className="approval-info"><b>{item.id}</b><small>{item.item} · {item.qty} units</small></div><div className="approval-right"><b>{money(item.value)}</b><Badge tone={tone(item.status)}>{item.status}</Badge></div></div> }
+
+function DataPage({ type, onAdd }) { const configs = { customers: { title: "Customers", desc: "Quản lý khách hàng và thông tin liên hệ.", data: customers, cols: ["ID", "Customer", "Contact", "Phone", "Tier", "Status"] }, products: { title: "Products", desc: "Danh mục sản phẩm, giá và tồn kho.", data: products, cols: ["ID", "Product", "Category", "Price", "Stock", "Status"] }, orders: { title: "Sales Orders", desc: "Theo dõi đơn hàng và trạng thái xử lý.", data: orders, cols: ["Order ID", "Customer", "Value", "Status", "Date"] }, quotations: { title: "Quotations", desc: "Báo giá và cơ hội bán hàng.", data: orders.slice(0, 3).map((x, i) => ({ ...x, id: `QT-2026-00${18 - i}`, status: i === 0 ? "Sent" : "Draft" })), cols: ["Quote ID", "Customer", "Value", "Status", "Date"] }, stock: { title: "Stock", desc: "Tồn kho và mức reorder của sản phẩm.", data: products, cols: ["ID", "Product", "Category", "Stock", "Reorder", "Status"] }, movement: { title: "Stock Movement", desc: "Lịch sử nhập và xuất kho.", data: orders.map((x, i) => ({ id: `MV-${102 - i}`, item: products[i].name, type: i % 2 ? "OUT" : "IN", qty: (i + 1) * 8, date: x.date, ref: x.id })), cols: ["Movement", "Item", "Type", "Qty", "Date", "Reference"] } }[type]; const [q, setQ] = useState(""); const filtered = configs.data.filter(r => JSON.stringify(r).toLowerCase().includes(q.toLowerCase())); return <div className="page"><PageHead title={configs.title} desc={configs.desc}><button className="secondary"><Icon name="Upload" /> Import</button><button className="primary" onClick={onAdd}><Icon name="Plus" /> Add new</button></PageHead><div className="toolbar"><div className="search"><Icon name="Search" size={17} /><input value={q} onChange={e => setQ(e.target.value)} placeholder={`Search ${configs.title.toLowerCase()}...`} /></div><button className="secondary"><Icon name="SlidersHorizontal" /> Filters</button><button className="secondary"><Icon name="Download" /> Export</button><span className="result-count">{filtered.length} records</span></div><div className="table-wrap"><table><thead><tr>{configs.cols.map(c => <th key={c}>{c}</th>)}</tr></thead><tbody>{filtered.map((r, i) => <tr key={i}>{configs.cols.map(c => <td key={c}>{cell(c, r)}</td>)}</tr>)}</tbody></table></div></div> }
+function cell(c, r) { let v = { ID: r.id, Customer: r.name || r.customer, Contact: r.contact, Phone: r.phone, Tier: r.tier, Status: r.status, Product: r.name, Category: r.category, Price: r.price ? money(r.price) : null, Stock: r.stock, Reorder: r.reorder, "Order ID": r.id, "Quote ID": r.id, Value: r.value ? money(r.value) : null, Date: r.date, Movement: r.id, Item: r.item, Type: r.type, Qty: r.qty, Reference: r.ref }[c]; if (c === "Status") return <Badge tone={tone(v)}>{v}</Badge>; if (c === "Stock") return <span className={r.stock < r.reorder ? "danger-text" : ""}>{v}</span>; if (c === "Type") return <Badge tone={v === "IN" ? "green" : "blue"}>{v}</Badge>; return v ?? "—"; }
+
+function OrderPage({ showToast }) { const [ordersState, setOrdersState] = useState(clone(orders)); const [open, setOpen] = useState(false); const [customer, setCustomer] = useState(customers[0].name); const [product, setProduct] = useState(products[0].name); const [qty, setQty] = useState(2); const selected = products.find(p => p.name === product); const total = (selected?.price || 0) * qty; const submit = () => { const id = `SO-2026-00${19 + ordersState.length}`; setOrdersState([{ id, customer, value: total, status: total >= 50000000 ? "Pending approval" : "Processing", date: "08/09/2026" }, ...ordersState]); setOpen(false); showToast("Sales Order đã được tạo thành công"); }; return <div className="page"><PageHead title="Sales Orders" desc="Tạo, theo dõi và quản lý đơn hàng bán."><button className="secondary"><Icon name="Download" /> Export</button><button className="primary" onClick={() => setOpen(true)}><Icon name="Plus" /> Create order</button></PageHead><div className="order-summary"><div><span>Today</span><b>18 orders</b></div><div><span>Processing</span><b>7</b></div><div><span>Pending approval</span><b>2</b></div><div><span>Completed</span><b>9</b></div></div><div className="table-wrap"><table><thead><tr><th>Order ID</th><th>Customer</th><th>Value</th><th>Status</th><th>Date</th><th>Action</th></tr></thead><tbody>{ordersState.map(r => <tr key={r.id}><td><b>{r.id}</b></td><td>{r.customer}</td><td><b>{money(r.value)}</b></td><td><Badge tone={tone(r.status)}>{r.status}</Badge></td><td>{r.date}</td><td><button className="table-action"><Icon name="MoreHorizontal" /></button></td></tr>)}</tbody></table></div>{open && <Modal title="Create Sales Order" onClose={() => setOpen(false)}><div className="form-grid"><Field label="Customer"><select value={customer} onChange={e => setCustomer(e.target.value)}>{customers.map(x => <option key={x.id}>{x.name}</option>)}</select></Field><Field label="Product"><select value={product} onChange={e => setProduct(e.target.value)}>{products.map(x => <option key={x.id}>{x.name}</option>)}</select></Field><Field label="Quantity"><input type="number" min="1" value={qty} onChange={e => setQty(Number(e.target.value) || 1)} /></Field><Field label="Unit price"><input value={money(selected?.price || 0)} disabled /></Field></div><div className="order-total"><span>Estimated total</span><strong>{money(total)}</strong></div><div className="modal-note"><Icon name="Info" /> Orders ≥ 50M ₫ will be shown as <b>Pending approval</b> in this frontend demo.</div><div className="modal-actions"><button className="secondary" onClick={() => setOpen(false)}>Cancel</button><button className="primary" onClick={submit}>Create order</button></div></Modal>}</div> }
+
+function Purchase({ showToast }) { const [items, setItems] = useState(clone(purchaseRequests)); const act = (id, status) => { setItems(items.map(x => x.id === id ? { ...x, status } : x)); showToast(`Request ${id}: ${status}`) }; return <div className="page"><PageHead title="Purchase Requests" desc="Yêu cầu mua hàng và luồng phê duyệt."><button className="primary"><Icon name="Plus" /> Create request</button></PageHead><div className="request-grid">{items.map(x => <div className="request-card" key={x.id}><div className="request-top"><Badge tone={tone(x.status)}>{x.status}</Badge><span>{x.id}</span></div><h3>{x.item}</h3><p>{x.reason}</p><div className="request-meta"><span><Icon name="Package" /> {x.qty} units</span><span><Icon name="User" /> {x.requester}</span></div><div className="request-value">{money(x.value)}</div>{x.status === "Pending approval" && <div className="request-actions"><button className="danger-btn" onClick={() => act(x.id, "Rejected")}>Reject</button><button className="primary" onClick={() => act(x.id, "Approved")}>Approve</button></div>}</div>)}</div></div> }
+
+function Approval({ showToast }) { const [items, setItems] = useState(clone(purchaseRequests)); const act = (id, status) => { setItems(items.map(x => x.id === id ? { ...x, status } : x)); showToast(`${id} đã được ${status === "Approved" ? "phê duyệt" : "từ chối"}`) }; return <div className="page"><PageHead title="Approval Center" desc="Human-in-the-loop: review trước các hành động nhạy cảm."><Badge tone="yellow">{items.filter(x => x.status === "Pending approval").length} pending</Badge></PageHead><Panel title="Requests requiring your attention"><div className="approval-list">{items.map(x => <div className="approval-card" key={x.id}><div className="approval-icon"><Icon name="ClipboardCheck" /></div><div className="approval-detail"><div className="approval-id">{x.id} · Purchase Request</div><h3>{x.item}</h3><p>{x.reason}. Created by <b>{x.requester}</b>.</p><div className="chips"><span>{x.qty} units</span><span>{money(x.value)}</span><span>Audit trail enabled</span></div></div>{x.status === "Pending approval" ? <div className="approval-buttons"><button className="danger-btn" onClick={() => act(x.id, "Rejected")}>Reject</button><button className="primary" onClick={() => act(x.id, "Approved")}>Approve</button></div> : <Badge tone={tone(x.status)}>{x.status}</Badge>}</div>)}</div></Panel></div> }
+
+function AI() { const [messages, setMessages] = useState([{ from: "ai", text: "Xin chào! Tôi là DX Copilot. Hãy hỏi tôi về tồn kho, đơn hàng hoặc khách hàng." }]); const [text, setText] = useState(""); const send = () => { if (!text.trim()) return; const t = text.trim(); let ans = t.toLowerCase().includes("tồn") ? "Tôi tìm thấy 2 sản phẩm dưới reorder level: Laptop Pro 14 (12/20) và Keyboard Mechanical (7/10). Tôi có thể tạo Purchase Request ở trạng thái PENDING để Manager phê duyệt." : t.toLowerCase().includes("đơn") ? "Hiện có 4 Sales Orders trong dữ liệu demo, trong đó SO-2026-0015 đang Pending approval." : "Tôi đã nhận yêu cầu. Khi tích hợp Backend, câu trả lời sẽ lấy dữ liệu thật thông qua các tool được cấp quyền."; setMessages(m => [...m, { from: "user", text: t }, { from: "ai", text: ans }]); setText("") }; return <div className="page"><PageHead title="AI Copilot" desc="Trợ lý AI cho dữ liệu doanh nghiệp và tác vụ có HITL."><Badge tone="blue">Frontend demo</Badge></PageHead><div className="ai-layout"><div className="chat panel"><div className="chat-head"><div className="ai-orb"><Icon name="Sparkles" /></div><div><b>DX Copilot</b><small>Data-aware assistant</small></div></div><div className="quick-prompts">{["Sản phẩm nào sắp hết hàng?", "Có đơn hàng nào cần duyệt?", "Tạo đề xuất mua Laptop Pro"].map(x => <button key={x} onClick={() => { setText(x) }}>{x}</button>)}</div><div className="messages">{messages.map((m, i) => <div className={`message ${m.from}`} key={i}><div>{m.text}</div></div>)}</div><div className="chat-input"><input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} placeholder="Ask about inventory, orders, customers..." /><button className="primary" onClick={send}><Icon name="Send" /></button></div></div><div className="panel tool-panel"><div className="panel-head"><h3>Available tools</h3><Badge tone="green">3 tools</Badge></div><Tool icon="Search" title="get_low_stock_products()" desc="Đọc sản phẩm dưới reorder level." /><Tool icon="FilePlus2" title="create_purchase_request()" desc="Tạo DRAFT/PENDING, không phát hành PO trực tiếp." /><Tool icon="Database" title="get_sales_orders()" desc="Đọc đơn hàng và trạng thái." /><div className="security-note"><Icon name="ShieldCheck" /><div><b>Permission boundary</b><small>Sensitive write actions require validation + human approval.</small></div></div></div></div></div> }
+function Tool({ icon, title, desc }) { return <div className="tool"><div className="tool-icon"><Icon name={icon} /></div><div><b>{title}</b><small>{desc}</small></div></div> }
+
+function Field({ label, children }) { return <label className="field"><span>{label}</span>{children}</label> }
+function Modal({ title, onClose, children }) { return <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && onClose()}><div className="modal"><div className="modal-head"><h2>{title}</h2><button className="icon-btn" onClick={onClose}><Icon name="X" /></button></div>{children}</div></div> }
+
+function Simple({ title, desc, icon = "Construction", action }) { return <div className="page empty-page"><div className="empty-icon"><Icon name={icon} size={32} /></div><h1>{title}</h1><p>{desc}</p><Badge tone="blue">Frontend prototype</Badge>{action && <button className="primary" onClick={action}><Icon name="Plus" /> Create demo item</button>}</div> }
+
+export default function App() { const [logged, setLogged] = useState(false), [user, setUser] = useState(null), [page, setPage] = useState("dashboard"), [collapsed, setCollapsed] = useState(false), [toast, setToast] = useState(""); const role = user?.RoleID || "Manager"; const showToast = m => { setToast(m); setTimeout(() => setToast(""), 2600) }; if (!logged) return <Login onLogin={u => { setUser(u); setLogged(true) }} />; let content; if (page === "dashboard") content = <Dashboard setPage={setPage} />; else if (["customers", "products", "quotations", "stock", "movement"].includes(page)) content = <DataPage type={page} onAdd={() => showToast("Form demo sẽ được kết nối API sau")} />; else if (page === "orders") content = <OrderPage showToast={showToast} />; else if (page === "purchase") content = <Purchase showToast={showToast} />; else if (page === "approval") content = <Approval showToast={showToast} />; else if (page === "ai") content = <AI />; else if (page === "tasks") content = <Simple title="My Tasks" desc="Các nhiệm vụ workflow được giao cho người dùng hiện tại." icon="ListChecks" />; else if (page === "history") content = <Simple title="Workflow History" desc="Audit trail của các request và workflow." icon="History" />; else if (page === "knowledge") content = <Simple title="Knowledge / Documents" desc="Kho tài liệu phục vụ tìm kiếm và RAG." icon="BookOpen" />; else if (page === "admin") content = <Simple title="Administration" desc="Users, Roles và System Configuration." icon="Settings" />; else content = <Simple title={pageLabel(page)} desc="Khu vực quản lý của DX-Lab Core." />; return <div className="app"><Sidebar page={page} setPage={setPage} collapsed={collapsed} setCollapsed={setCollapsed} role={role} /><main className="main"><Topbar role={role} page={page} user={user} onLogout={() => { setLogged(false); setUser(null); }} />{content}</main>{toast && <div className="toast"><Icon name="CheckCircle2" />{toast}</div>}</div> }
