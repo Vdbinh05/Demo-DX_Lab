@@ -18,6 +18,11 @@ set "PYTHON_EXE="
 where python >nul 2>nul
 if not errorlevel 1 set "PYTHON_EXE=python"
 
+if not defined PYTHON_EXE (
+    where py >nul 2>nul
+    if not errorlevel 1 set "PYTHON_EXE=py"
+)
+
 if not defined PYTHON_EXE if exist "%LOCALAPPDATA%\Programs\Python\Python314\python.exe" set "PYTHON_EXE=%LOCALAPPDATA%\Programs\Python\Python314\python.exe"
 
 if not defined PYTHON_EXE (
@@ -26,23 +31,23 @@ if not defined PYTHON_EXE (
     exit /b 1
 )
 
-if not exist ".venv\Scripts\python.exe" (
-    echo [1/4] Dang tao moi truong Python .venv...
-    "%PYTHON_EXE%" -m venv .venv
+if not exist "backend\.venv\Scripts\python.exe" (
+    echo [1/5] Dang tao moi truong Python backend\.venv...
+    "%PYTHON_EXE%" -m venv "backend\.venv"
     if errorlevel 1 goto :install_error
 ) else (
-    echo [1/4] Da co moi truong Python .venv.
+    echo [1/5] Da co moi truong Python backend\.venv.
 )
 
-echo [2/4] Dang cai thu vien backend...
-".venv\Scripts\python.exe" -m pip install -r "backend\requirements.txt"
+echo [2/5] Dang cai thu vien backend...
+"backend\.venv\Scripts\python.exe" -m pip install -r "backend\requirements.txt"
 if errorlevel 1 goto :install_error
 
-echo [3/4] Dang cai thu vien frontend...
-call npm install
+echo [3/5] Dang cai thu vien frontend...
+call npm --prefix "frontend" install
 if errorlevel 1 goto :install_error
 
-echo [4/4] Dang tao cau hinh SQL Server cuc bo...
+echo [4/5] Dang tao cau hinh SQL Server cuc bo...
 if not exist "backend\.env" copy /Y "backend\.env.example" "backend\.env" >nul
 
 findstr /C:"replace-with-your-local-password" "backend\.env" >nul
@@ -60,6 +65,10 @@ if not errorlevel 1 (
     pause
     exit /b 1
 )
+
+echo [5/5] Dang tao database va du lieu demo...
+"backend\.venv\Scripts\python.exe" "backend\database\init_database.py"
+if errorlevel 1 goto :install_error
 
 echo.
 echo Cai dat hoan tat. Tu lan sau chi can chay CHAY_DU_AN.bat

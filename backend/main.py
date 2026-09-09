@@ -43,7 +43,6 @@ class RegisterRequest(BaseModel):
     full_name: str
     username: str
     password: str
-    role_id: str
 
 
 # Có thể ghi đè các giá trị này bằng biến môi trường khi deploy.
@@ -56,6 +55,7 @@ SQL_DRIVER = os.getenv("DXLAB_SQL_DRIVER", "{ODBC Driver 17 for SQL Server}")
 PASSWORD_SCHEME = "pbkdf2_sha256"
 PASSWORD_ITERATIONS = 600_000
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
+PUBLIC_REGISTRATION_ROLE = "Sales"
 
 
 def get_connection():
@@ -107,7 +107,6 @@ def validate_register_data(data: RegisterRequest):
     full_name = data.full_name.strip()
     username = data.username.strip()
     password = data.password
-    role_id = data.role_id.strip()
 
     if not 2 <= len(full_name) <= 100:
         raise HTTPException(
@@ -127,18 +126,13 @@ def validate_register_data(data: RegisterRequest):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Mật khẩu phải có từ 8 đến 128 ký tự.",
         )
-    if not role_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Vui lòng chọn vai trò.",
-        )
-
-    return full_name, username, password, role_id
+    return full_name, username, password
 
 
 @app.post("/register", status_code=status.HTTP_201_CREATED)
 def register(data: RegisterRequest):
-    full_name, username, password, role_id = validate_register_data(data)
+    full_name, username, password = validate_register_data(data)
+    role_id = PUBLIC_REGISTRATION_ROLE
     conn = None
 
     try:

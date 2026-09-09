@@ -286,10 +286,17 @@ function LoginScreen({ onAuthenticated }) {
               </button>
             </form>
 
-            <div className="register-link">
-              Chưa có tài khoản nhân viên?
-              <button type="button" onClick={() => setRegisterOpen(true)}>Tạo tài khoản</button>
-            </div>
+            {portal === "employee" ? (
+              <div className="register-link">
+                Chưa có tài khoản nhân viên?
+                <button type="button" onClick={() => setRegisterOpen(true)}>Tạo tài khoản</button>
+              </div>
+            ) : (
+              <div className="admin-account-note">
+                <Icon name="ShieldCheck" size={16} />
+                <span>Tài khoản quản trị phải được hệ thống cấp, không tạo từ form đăng ký công khai.</span>
+              </div>
+            )}
 
             <div className="security-caption">
               <Icon name="Info" size={15} />
@@ -340,7 +347,7 @@ function RegisterModal({ onClose, onUseUsername }) {
       const response = await fetch(REGISTER_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ full_name: fullName, username, password: form.password, role_id: "Sales" }),
+        body: JSON.stringify({ full_name: fullName, username, password: form.password }),
       });
       const data = await response.json().catch(() => null);
       if (!response.ok || !data?.success) {

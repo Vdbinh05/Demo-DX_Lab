@@ -1,145 +1,189 @@
 # DX-Lab Core
 
-DX-Lab Core gồm frontend React + Vite và backend xác thực FastAPI + SQL Server.
+DX-Lab Core là ứng dụng quản lý bán hàng sử dụng React, FastAPI và Microsoft SQL Server. Frontend và backend được đặt trong hai thư mục riêng để thành viên mới dễ nhận biết, cài đặt và phát triển độc lập.
 
-## Yêu cầu
+## Cấu trúc dự án
 
-- Node.js 20.19+ (khuyến nghị Node.js LTS mới)
-- Python 3.10+
-- SQL Server và ODBC Driver 17 for SQL Server
-- Visual Studio Code
-- Internet để npm tải package lần đầu
+```text
+DX-Lab-Core/
+├── frontend/                       # Giao diện React + Vite
+│   ├── src/
+│   ├── .env.example                # Mẫu địa chỉ API
+│   ├── index.html
+│   ├── package.json
+│   ├── package-lock.json
+│   └── vite.config.js
+│
+├── backend/                        # FastAPI + SQL Server
+│   ├── database/
+│   │   ├── init_database.py        # Chạy schema và seed tự động
+│   │   ├── schema.sql              # Tạo database và bảng
+│   │   └── seed.sql                # Dữ liệu demo an toàn
+│   ├── .env.example                # Mẫu cấu hình SQL Server
+│   ├── main.py
+│   └── requirements.txt
+│
+├── docs/                           # Tài liệu nguồn mở
+├── .gitignore
+├── CAI_DAT_LAN_DAU.bat             # Cài dự án trên máy mới
+├── CHAY_DU_AN.bat                  # Chạy frontend và backend
+├── README.md
+└── THIRD_PARTY_NOTICES.md
+```
 
-## Khởi động nhanh trên Windows
+Các thư mục `.venv`, `node_modules`, `dist`, `__pycache__` và file `.env` chỉ tồn tại trên máy lập trình viên, không được đẩy lên GitHub.
 
-Lần đầu tiên, nhấp đúp `CAI_DAT_LAN_DAU.bat` hoặc chạy:
+## 1. Yêu cầu
+
+Cài đặt:
+
+- Git.
+- Node.js 20.19 trở lên.
+- Python 3.10 trở lên.
+- Microsoft SQL Server.
+- ODBC Driver 17 for SQL Server.
+- SQL Server Management Studio (SSMS), khuyến nghị để kiểm tra database.
+
+SQL Server cần bật SQL Server Authentication. Tài khoản dùng trong lần cài đầu phải có quyền tạo database.
+
+## 2. Tải mã nguồn
+
+Máy chưa có dự án:
+
+```powershell
+git clone https://github.com/Vdbinh05/Demo-DX_Lab.git
+cd Demo-DX_Lab
+```
+
+Máy đã có dự án:
+
+```powershell
+git pull origin main
+```
+
+## 3. Cài đặt lần đầu
+
+Từ thư mục gốc, chạy:
 
 ```powershell
 .\CAI_DAT_LAN_DAU.bat
 ```
 
-Script sẽ tạo `.venv`, cài thư viện frontend/backend và tạo `backend/.env` từ tệp mẫu. Nhập mật khẩu SQL Server thật vào `backend/.env` khi Notepad mở ra. Tệp `.env` đã được `.gitignore` bảo vệ và không được commit.
+Script tự động:
 
-Từ lần chạy tiếp theo, chỉ cần nhấp đúp `CHAY_DU_AN.bat` hoặc chạy:
+1. Tạo môi trường Python tại `backend/.venv`.
+2. Cài dependency FastAPI.
+3. Cài dependency React tại `frontend/node_modules`.
+4. Tạo `backend/.env` và mở bằng Notepad.
+5. Tạo database `DXLabCore`, 10 bảng và dữ liệu demo.
+
+Khi Notepad mở `backend/.env`, điền tài khoản SQL Server trên chính máy đó:
+
+```env
+DXLAB_SQL_SERVER=localhost,1433
+DXLAB_SQL_DATABASE=DXLabCore
+DXLAB_SQL_USER=sa
+DXLAB_SQL_PASSWORD=MAT_KHAU_SQL_SERVER_CUA_BAN
+DXLAB_SQL_DRIVER={ODBC Driver 17 for SQL Server}
+```
+
+Lưu và đóng Notepad để quá trình cài đặt tiếp tục. Không ghi mật khẩu thật vào README, `.env.example` hoặc bất kỳ file nào được Git theo dõi.
+
+## 4. Chạy dự án hằng ngày
+
+Đảm bảo dịch vụ SQL Server đang hoạt động, sau đó chạy tại thư mục gốc:
 
 ```powershell
 .\CHAY_DU_AN.bat
 ```
 
-Hai cửa sổ sẽ được mở: FastAPI tại `http://localhost:8000` và React tại `http://localhost:5173`. SQL Server vẫn phải đang hoạt động.
+Địa chỉ sử dụng:
 
-## Chạy backend thủ công
+- Frontend: <http://localhost:5173>
+- Backend API: <http://localhost:8000>
+- Swagger API: <http://localhost:8000/docs>
 
-FastAPI tự đọc `backend/.env` thông qua `python-dotenv`. Nếu không muốn dùng `.env`, có thể thiết lập thông tin SQL Server bằng biến môi trường. Không commit mật khẩu thật vào Git:
+Giữ hai cửa sổ server mở trong khi sử dụng. Nhấn `Ctrl + C` trong từng cửa sổ để dừng.
+
+## 5. Tài khoản website demo
+
+| Khu vực | Tên đăng nhập | Mật khẩu |
+| --- | --- | --- |
+| Quản trị viên | `admin.demo` | `Admin@123` |
+| Nhân viên | `sales.demo` | `Sales@123` |
+
+Đây là tài khoản phát triển công khai. Phải đổi hoặc xóa trước khi triển khai hệ thống thật. Người dùng đăng ký công khai từ giao diện luôn nhận vai trò `Sales`.
+
+## 6. Khởi tạo database thủ công
+
+Nếu script tự động không có quyền tạo database, mở SSMS và chạy theo thứ tự:
+
+1. `backend/database/schema.sql`.
+2. `backend/database/seed.sql`.
+
+Hai script có thể chạy lại, không xóa dữ liệu hiện có và không chèn trùng mã demo.
+
+Schema tạo các bảng:
+
+- `Roles`, `Users`.
+- `Customers`, `Products`.
+- `SalesOrders`, `SalesOrderItems`.
+- `Quotations`, `PurchaseRequests`.
+- `StockMovements`, `Activities`.
+
+Seed chỉ chứa dữ liệu giả, không chứa mật khẩu SQL Server hoặc dữ liệu khách hàng thật.
+
+## 7. Chạy riêng từng phần
+
+### Backend
+
+Từ thư mục gốc:
 
 ```powershell
-$env:DXLAB_SQL_SERVER="localhost"
-$env:DXLAB_SQL_DATABASE="DXLabCore"
-$env:DXLAB_SQL_USER="sa"
-$env:DXLAB_SQL_PASSWORD="mat-khau-sql-server-cua-ban"
+.\backend\.venv\Scripts\python.exe -m uvicorn main:app --app-dir backend --reload --port 8000
 ```
 
-Sau đó cài dependency và chạy FastAPI:
+### Frontend
 
 ```powershell
-cd backend
-python -m pip install -r requirements.txt
-python -m uvicorn main:app --reload
-```
-
-API chạy mặc định tại `http://localhost:8000`. Các biến hỗ trợ được liệt kê trong `backend/.env.example`.
-
-## Chạy frontend
-
-Mở thư mục này bằng Visual Studio Code, sau đó mở Terminal:
-
-```bash
-npm install
+cd frontend
 npm run dev
 ```
 
-Vite sẽ hiển thị địa chỉ local, thường là:
+### Build frontend
 
-```text
-http://localhost:5173
-```
-
-Mở địa chỉ đó bằng Chrome/Edge.
-
-## Build
-
-```bash
+```powershell
+cd frontend
 npm run build
 ```
 
-## Phạm vi hiện tại
+## 8. Lỗi kết nối SQL Server
 
-Phạm vi đã kết nối dữ liệu thật:
+Nếu giao diện báo `Không thể kết nối SQL Server`, kiểm tra:
 
-- Đăng ký tài khoản qua `POST /register` và lưu vào SQL Server
-- Đăng nhập qua `POST /login` và đối chiếu khu vực Nhân viên/Admin với `RoleID` trả về
-- Mật khẩu tài khoản mới được băm PBKDF2
-- Các tài khoản cũ lưu mật khẩu dạng thường vẫn được hỗ trợ trong giai đoạn chuyển đổi
+1. Dịch vụ SQL Server đang chạy.
+2. `backend/.env` chứa đúng tên máy chủ, tài khoản và mật khẩu.
+3. Database có tên `DXLabCore`.
+4. SQL Server đang nghe tại cổng `1433`.
+5. Máy đã cài ODBC Driver 17.
+6. Nếu dùng named instance, thử `DXLAB_SQL_SERVER=localhost\SQLEXPRESS`.
 
-Frontend đã tách hai không gian làm việc:
+`localhost` luôn là máy đang chạy chương trình. Mỗi thành viên nên dùng SQL Server và tài khoản riêng trên máy của mình.
 
-- Nhân viên (`Sales`, `Warehouse`): bán hàng tại quầy, xem danh mục, khuyến mãi, đơn cá nhân và tra cứu khách hàng
-- Quản trị viên (`Admin`): xem doanh thu tháng, quản lý đơn hàng, sản phẩm, khách hàng, kho và tài khoản
-- Tài khoản đăng ký công khai luôn mang vai trò `Sales`; frontend không cho người dùng tự cấp quyền Admin
-- Quyền truy cập được kiểm tra tập trung trước khi hiển thị từng trang
+## 9. Phạm vi hiện tại
 
-Các phần còn ở dạng prototype:
+Đã kết nối SQL Server thật:
 
-- Không có Keycloak thật
-- Không có n8n thật
-- Không có Ollama/Qdrant thật
-- Dữ liệu nghiệp vụ ngoài tài khoản vẫn dùng mock data
-- JWT, endpoint `/auth/me` và RBAC tại backend chưa được triển khai
+- `POST /register`: đăng ký tài khoản.
+- `POST /login`: đăng nhập và trả về `RoleID`.
+- Mật khẩu mới được băm bằng PBKDF2-SHA256.
+- Frontend đối chiếu khu vực Nhân viên/Quản trị viên với vai trò từ backend.
 
-Các chức năng đã mô phỏng:
+Các màn hình nghiệp vụ ngoài đăng nhập và đăng ký vẫn đang dùng dữ liệu demo phía frontend. JWT và kiểm tra RBAC tại từng API là bước backend tiếp theo.
 
-- Chọn cổng đăng nhập Nhân viên/Admin và kiểm tra với vai trò SQL
-- Dashboard
-- Sales
-- Inventory
-- Purchase Request
-- Approval Center
-- Workflow
-- Knowledge / Documents
-- AI Copilot
-- Administration
-- Tìm kiếm bảng dữ liệu
-- Approve / Reject demo
-- AI chat demo
+## 10. Mã nguồn mở
 
-## Định hướng tích hợp sau này
+- [Nguồn mở được tham khảo](docs/OPEN_SOURCE_REFERENCES.md)
+- [Thông báo thư viện bên thứ ba](THIRD_PARTY_NOTICES.md)
 
-1. Keycloak/OIDC cho SSO.
-2. Mở rộng REST API cho dữ liệu nghiệp vụ.
-3. n8n cho workflow.
-4. Hoàn thiện migration và quản lý schema SQL Server.
-5. Metabase cho BI.
-6. Ollama + Qdrant + RAG/Agent cho AI.
-
-Không để frontend trực tiếp ghi CSDL hoặc tự quyết định các hành động nhạy cảm; các thao tác cần approval nên đi qua Backend/API và HITL.
-
-
-## GUI version included
-
-Bản hiện tại đã nâng cấp thành frontend GUI hoàn chỉnh hơn cho mục 2.3:
-
-- Dashboard enterprise với KPI, chart, approval và inventory alert
-- Sales Orders có form Create Order + tính tổng tiền + trạng thái approval demo
-- Customers / Products / Quotations
-- Inventory / Stock / Stock Movement
-- Purchase Requests
-- Approval Center với Approve / Reject
-- AI Copilot với quick prompts + mock tool panel
-- My Tasks / Workflow History / Knowledge / Administration
-- Hai dashboard riêng cho Nhân viên và Quản trị viên
-- Toast notification, responsive layout, search/filter UI
-
-## Tài liệu nguồn mở
-
-- [Nguồn mở tham khảo](docs/OPEN_SOURCE_REFERENCES.md)
-- [Thông báo bên thứ ba](THIRD_PARTY_NOTICES.md)
+Không commit `.env`, mật khẩu SQL Server, file backup chứa dữ liệu thật hoặc thông tin cá nhân.

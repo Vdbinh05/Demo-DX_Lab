@@ -2,7 +2,7 @@
 setlocal
 cd /d "%~dp0"
 
-if not exist ".venv\Scripts\python.exe" (
+if not exist "backend\.venv\Scripts\python.exe" (
     echo Chua cai dat du an. Dang mo CAI_DAT_LAN_DAU.bat...
     call "%~dp0CAI_DAT_LAN_DAU.bat"
     if errorlevel 1 exit /b 1
@@ -22,15 +22,15 @@ if not errorlevel 1 (
     if not errorlevel 1 exit /b 1
 )
 
-if not exist "node_modules" (
+if not exist "frontend\node_modules" (
     echo [LOI] Chua cai thu vien frontend. Hay chay CAI_DAT_LAN_DAU.bat.
     pause
     exit /b 1
 )
 
 echo Dang khoi dong DX-Lab Core...
-start "DX-Lab Backend" /D "%~dp0backend" cmd /k ""%~dp0.venv\Scripts\python.exe" -m uvicorn main:app --reload --host 127.0.0.1 --port 8000"
-start "DX-Lab Frontend" /D "%~dp0" cmd /k "npm run dev"
+start "DX-Lab Backend" /D "%~dp0backend" cmd /k ""%~dp0backend\.venv\Scripts\python.exe" -m uvicorn main:app --reload --host 127.0.0.1 --port 8000"
+start "DX-Lab Frontend" /D "%~dp0frontend" cmd /k "npm run dev"
 
 echo.
 echo Backend:  http://localhost:8000
