@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ArrowLeftRight,
   ArrowRight,
@@ -63,22 +63,24 @@ import {
   X,
 } from "lucide-react";
 import {
-  customers,
-  employees,
   menus,
-  monthlyRevenue,
-  orders,
   permissionsByPortal,
   portalConfig,
-  products,
-  promotions,
 } from "./data";
+import { AdminHeaderTools, AdminPageRouter } from "./admin/AdminPages";
+import { apiRequest } from "./api";
+import { useCatalogCustomers, useCatalogProducts, usePromotions } from "./hooks/useCatalogData";
+import { useMyOrders } from "./hooks/useMyOrders";
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/$/, "");
 const LOGIN_API_URL = `${API_BASE_URL}/login`;
 const REGISTER_API_URL = `${API_BASE_URL}/register`;
+const SESSION_STORAGE_KEY = "dxlab.session.v1";
 
 const formatMoney = (value) => `${new Intl.NumberFormat("vi-VN").format(value)} ₫`;
+const formatDateTime = (value) => value
+  ? new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(new Date(value))
+  : "—";
 
 const iconMap = {
   ArrowLeftRight, ArrowRight, ArrowUpRight, BadgeCheck, BadgePercent, BarChart3,
@@ -158,7 +160,7 @@ function LoginScreen({ onAuthenticated }) {
         return;
       }
 
-      onAuthenticated(data.user, accountPortal);
+      onAuthenticated(data.user, accountPortal, data.access_token);
     } catch {
       setError("Không thể kết nối FastAPI tại cổng 8000. Hãy kiểm tra backend và cấu hình VITE_API_URL.");
     } finally {
@@ -191,11 +193,11 @@ function LoginScreen({ onAuthenticated }) {
             <div className="story-preview">
               <div className="preview-head">
                 <span><i /> Tổng quan vận hành</span>
-                <small>Tháng 09/2026</small>
+                <small>Dữ liệu trực tiếp</small>
               </div>
               <div className="preview-grid">
-                <div><Icon name="TrendingUp" /><span>Doanh thu</span><b>486,2 triệu</b></div>
-                <div><Icon name="ShoppingBag" /><span>Đơn hàng</span><b>128 đơn</b></div>
+                <div><Icon name="TrendingUp" /><span>Doanh thu</span><b>Theo thời gian thực</b></div>
+                <div><Icon name="ShoppingBag" /><span>Đơn hàng</span><b>Truy xuất đầy đủ</b></div>
               </div>
               <div className="preview-chart">
                 {[36, 52, 44, 67, 61, 82, 76, 94].map((height, index) => (
@@ -395,7 +397,7 @@ function LogoMark() {
   return <span className="logo-mark"><span>DX</span></span>;
 }
 
-function Workspace({ user, portal, onLogout }) {
+function Workspace({ user, portal, token, onLogout }) {
   const config = portalConfig[portal];
   const allowedMenu = menus[portal].filter((item) => permissionsByPortal[portal].has(item.permission));
   const [page, setPage] = useState(config.landingPage);
@@ -423,9 +425,9 @@ function Workspace({ user, portal, onLogout }) {
     <div className={`workspace-app portal-${portal}`}>
       <Sidebar portal={portal} menu={allowedMenu} page={page} onNavigate={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="workspace-main">
-        <Header user={user} portal={portal} pageLabel={currentItem?.label} onLogout={onLogout} onOpenMenu={() => setSidebarOpen(true)} />
+        <Header user={user} portal={portal} token={token} pageLabel={currentItem?.label} onNavigate={navigate} onLogout={onLogout} onOpenMenu={() => setSidebarOpen(true)} />
         <div className="workspace-content">
-          <PageRouter page={page} portal={portal} user={user} onNavigate={navigate} showToast={showToast} />
+          <PageRouter page={page} portal={portal} token={token} user={user} onNavigate={navigate} showToast={showToast} />
         </div>
       </div>
       {toast && <div className="toast"><Icon name="CircleCheck" size={19} />{toast}</div>}
@@ -440,7 +442,7 @@ function Sidebar({ portal, menu, page, onNavigate, open, onClose }) {
       <button className={`sidebar-backdrop ${open ? "show" : ""}`} onClick={onClose} aria-label="Đóng menu" />
       <aside className={`workspace-sidebar ${open ? "open" : ""}`}>
         <div className="sidebar-brand"><LogoMark /><div><strong>DX-LAB CORE</strong><span>Commerce Workspace</span></div></div>
-        <div className={`portal-badge ${portal}`}><Icon name={config.icon} size={18} /><div><span>KHÔNG GIAN</span><b>{config.shortLabel}</b></div></div>
+        {portal === "employee" && <div className={`portal-badge ${portal}`}><Icon name={config.icon} size={18} /><div><span>KHÔNG GIAN</span><b>{config.shortLabel}</b></div></div>}
         <nav className="sidebar-nav">
           <span className="nav-caption">ĐIỀU HƯỚNG</span>
           {menu.map((item) => (
@@ -449,13 +451,12 @@ function Sidebar({ portal, menu, page, onNavigate, open, onClose }) {
             </button>
           ))}
         </nav>
-        <div className="sidebar-security"><Icon name="ShieldCheck" size={18} /><div><b>Quyền hạn được bảo vệ</b><span>{portal === "admin" ? "Toàn quyền quản trị" : "Không có quyền sửa hoặc xóa"}</span></div></div>
       </aside>
     </>
   );
 }
 
-function Header({ user, portal, pageLabel, onLogout, onOpenMenu }) {
+function Header({ user, portal, token, pageLabel, onNavigate, onLogout, onOpenMenu }) {
   const fullName = user?.FullName || user?.Username || "Người dùng";
   const initials = fullName.split(/\s+/).filter(Boolean).slice(-2).map((word) => word[0]).join("").toUpperCase();
   return (
@@ -465,123 +466,92 @@ function Header({ user, portal, pageLabel, onLogout, onOpenMenu }) {
         <div><span>DX-Lab Core / {portalConfig[portal].label}</span><h1>{pageLabel}</h1></div>
       </div>
       <div className="header-actions">
-        <button className="header-icon" aria-label="Tìm kiếm"><Icon name="Search" size={19} /></button>
-        <button className="header-icon notification" aria-label="Thông báo"><Icon name="Bell" size={19} /><i /></button>
+        {portal === "admin" ? <AdminHeaderTools token={token} onNavigate={onNavigate} /> : <><button className="header-icon" aria-label="Tìm kiếm"><Icon name="Search" size={19} /></button><button className="header-icon notification" aria-label="Thông báo"><Icon name="Bell" size={19} /><i /></button></>}
         <div className="profile"><span className="profile-avatar">{initials || "DX"}</span><div><b>{fullName}</b><span>{user?.RoleID || portalConfig[portal].label}</span></div><button onClick={onLogout} title="Đăng xuất"><Icon name="LogOut" size={18} /></button></div>
       </div>
     </header>
   );
 }
 
-function PageRouter({ page, portal, user, onNavigate, showToast }) {
+function PageRouter({ page, portal, token, user, onNavigate, showToast }) {
   const allowed = menus[portal].find((item) => item.id === page);
   if (!allowed || !permissionsByPortal[portal].has(allowed.permission)) return <AccessDenied />;
 
   if (portal === "employee") {
-    if (page === "pos") return <PointOfSale user={user} showToast={showToast} />;
-    if (page === "catalog") return <CatalogPage />;
-    if (page === "promotions") return <PromotionsPage />;
-    if (page === "my-orders") return <OrdersPage employee user={user} />;
-    if (page === "customers") return <CustomersPage canWrite={false} showToast={showToast} />;
+    if (page === "pos") return <PointOfSale token={token} user={user} showToast={showToast} />;
+    if (page === "catalog") return <CatalogPage token={token} />;
+    if (page === "promotions") return <PromotionsPage token={token} />;
+    if (page === "my-orders") return <MyOrdersPage token={token} />;
+    if (page === "customers") return <CustomersPage token={token} />;
   }
 
-  if (page === "overview") return <AdminOverview onNavigate={onNavigate} />;
-  if (page === "revenue") return <RevenuePage />;
-  if (page === "orders") return <OrdersPage showToast={showToast} />;
-  if (page === "products") return <ProductsPage showToast={showToast} />;
-  if (page === "customers") return <CustomersPage canWrite showToast={showToast} />;
-  if (page === "inventory") return <InventoryPage showToast={showToast} />;
-  if (page === "users") return <UsersPage showToast={showToast} />;
-  if (page === "settings") return <SettingsPage showToast={showToast} />;
-  return <AccessDenied />;
+  return <AdminPageRouter page={page} token={token} user={user} onNavigate={onNavigate} showToast={showToast} />;
 }
 
 function PageHeading({ eyebrow, title, description, children }) {
   return <div className="page-heading"><div><span>{eyebrow}</span><h2>{title}</h2><p>{description}</p></div>{children && <div className="page-actions">{children}</div>}</div>;
 }
 
-function AdminOverview({ onNavigate }) {
-  const lowStock = products.filter((product) => product.stock <= product.reorder);
-  return (
-    <div className="page-stack">
-      <PageHeading eyebrow="QUẢN TRỊ VIÊN" title="Tổng quan kinh doanh" description="Theo dõi doanh thu, đơn hàng và các vấn đề cần xử lý trong tháng 9.">
-        <button className="secondary-button"><Icon name="CalendarDays" size={17} /> Tháng 09/2026</button>
-        <button className="primary-button" onClick={() => onNavigate("revenue")}><Icon name="BarChart3" size={17} /> Xem báo cáo</button>
-      </PageHeading>
-      <div className="metric-grid">
-        <MetricCard icon="WalletCards" label="Doanh thu tháng" value="486,2 triệu ₫" change="+12,8% so với tháng 8" tone="blue" />
-        <MetricCard icon="ShoppingBag" label="Đơn đã bán" value="128" change="18 đơn trong hôm nay" tone="violet" />
-        <MetricCard icon="UsersRound" label="Khách hàng" value="1.284" change="+32 khách hàng mới" tone="green" />
-        <MetricCard icon="TriangleAlert" label="Cảnh báo tồn kho" value={String(lowStock.length)} change="Cần bổ sung sớm" tone="orange" />
-      </div>
-      <div className="dashboard-grid">
-        <Panel title="Xu hướng doanh thu" subtitle="6 tháng gần nhất" action="Chi tiết" onAction={() => onNavigate("revenue")}>
-          <RevenueBars compact />
-        </Panel>
-        <Panel title="Sản phẩm bán chạy" subtitle="Theo số lượng tháng này">
-          <div className="top-products">
-            {[...products].sort((a, b) => b.sold - a.sold).slice(0, 4).map((product, index) => (
-              <div key={product.id}><span className="rank">{index + 1}</span><span className="product-avatar"><Icon name="Package" size={18} /></span><div><b>{product.name}</b><small>{product.category}</small></div><strong>{product.sold} đã bán</strong></div>
-            ))}
-          </div>
-        </Panel>
-      </div>
-      <Panel title="Đơn hàng gần đây" subtitle="Cập nhật theo dữ liệu bán hàng" action="Xem tất cả" onAction={() => onNavigate("orders")}>
-        <OrdersTable data={orders.slice(0, 4)} />
-      </Panel>
-    </div>
-  );
-}
-
-function MetricCard({ icon, label, value, change, tone }) {
-  return <article className="metric-card"><span className={`metric-icon ${tone}`}><Icon name={icon} /></span><div><span>{label}</span><strong>{value}</strong><small><Icon name="ArrowUpRight" size={13} />{change}</small></div></article>;
-}
-
-function RevenueBars({ compact = false }) {
-  const max = Math.max(...monthlyRevenue.map((item) => item.value));
-  return <div className={`revenue-bars ${compact ? "compact" : ""}`}><div className="bar-grid"><span>500M</span><span>375M</span><span>250M</span><span>125M</span><span>0</span></div><div className="bars">{monthlyRevenue.map((item) => <div className="bar-column" key={item.month}><div className="bar-tooltip">{item.value}M</div><i style={{ height: `${(item.value / max) * 100}%` }} className={item.month === "T9" ? "current" : ""} /><span>{item.month}</span></div>)}</div></div>;
-}
-
-function RevenuePage() {
-  return (
-    <div className="page-stack">
-      <PageHeading eyebrow="BÁO CÁO QUẢN TRỊ" title="Doanh thu tháng 09/2026" description="Dữ liệu tài chính chỉ hiển thị cho tài khoản quản trị.">
-        <button className="secondary-button"><Icon name="Download" size={17} /> Xuất báo cáo</button>
-      </PageHeading>
-      <div className="financial-banner">
-        <div><span>TỔNG DOANH THU</span><strong>486.200.000 ₫</strong><small><Icon name="TrendingUp" size={16} /> Tăng 12,8% so với tháng trước</small></div>
-        <div className="financial-split"><div><span>Giá vốn ước tính</span><b>291,7 triệu ₫</b></div><div><span>Lợi nhuận gộp</span><b>194,5 triệu ₫</b></div><div><span>Biên lợi nhuận</span><b>40,0%</b></div></div>
-      </div>
-      <Panel title="Doanh thu theo tháng" subtitle="Đơn vị: triệu đồng"><RevenueBars /></Panel>
-      <div className="dashboard-grid revenue-detail">
-        <Panel title="Theo nhóm sản phẩm"><BreakdownRow label="Laptop & Máy tính" value="214,8 triệu" percent={44} /><BreakdownRow label="Màn hình" value="112,4 triệu" percent={23} /><BreakdownRow label="Phụ kiện" value="96,1 triệu" percent={20} /><BreakdownRow label="Khác" value="62,9 triệu" percent={13} /></Panel>
-        <Panel title="Chỉ số bán hàng"><div className="report-list"><div><span>Giá trị đơn trung bình</span><b>3.798.000 ₫</b></div><div><span>Tỷ lệ hoàn thành</span><b>92,4%</b></div><div><span>Đơn chờ duyệt</span><b>4 đơn</b></div><div><span>Hoàn / hủy</span><b>3 đơn</b></div></div></Panel>
-      </div>
-    </div>
-  );
-}
-
-function BreakdownRow({ label, value, percent }) {
-  return <div className="breakdown-row"><div><span>{label}</span><b>{value}</b></div><div className="progress"><i style={{ width: `${percent}%` }} /></div><small>{percent}%</small></div>;
-}
-
-function PointOfSale({ user, showToast }) {
+function PointOfSale({ token, user, showToast }) {
   const [query, setQuery] = useState("");
   const [cart, setCart] = useState([]);
-  const [customer, setCustomer] = useState("Khách lẻ");
+  const [customerId, setCustomerId] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("Cash");
+  const [checkingOut, setCheckingOut] = useState(false);
+  const { items: products, loading, error, reload: reloadProducts } = useCatalogProducts(token);
+  const customerData = useCatalogCustomers(token);
   const visibleProducts = products.filter((product) => `${product.name} ${product.category}`.toLowerCase().includes(query.toLowerCase()));
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const selectedCustomer = customerData.items.find((item) => item.id === customerId);
 
-  const addToCart = (product) => setCart((current) => {
-    const existing = current.find((item) => item.id === product.id);
-    if (existing) return current.map((item) => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
-    return [...current, { ...product, quantity: 1 }];
-  });
-  const changeQuantity = (id, change) => setCart((current) => current.map((item) => item.id === id ? { ...item, quantity: item.quantity + change } : item).filter((item) => item.quantity > 0));
-  const checkout = () => {
-    if (!cart.length) return;
-    showToast(`Đã tạo đơn bán hàng ${formatMoney(total)} cho ${customer}.`);
-    setCart([]);
+  useEffect(() => {
+    if (!customerId && customerData.items.length) {
+      setCustomerId(customerData.items[0].id);
+    }
+  }, [customerData.items, customerId]);
+
+  useEffect(() => {
+    setCart((current) => current.map((item) => {
+      const latest = products.find((product) => product.id === item.id);
+      return latest ? { ...latest, quantity: item.quantity } : item;
+    }));
+  }, [products]);
+
+  const addToCart = (product) => {
+    const existing = cart.find((item) => item.id === product.id);
+    if (product.stock <= 0 || (existing && existing.quantity >= product.stock)) {
+      showToast(`${product.name} không còn đủ tồn kho.`);
+      return;
+    }
+    setCart((current) => existing
+      ? current.map((item) => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item)
+      : [...current, { ...product, quantity: 1 }]);
+  };
+  const changeQuantity = (id, change) => setCart((current) => current
+    .map((item) => item.id === id ? { ...item, quantity: Math.min(item.stock, item.quantity + change) } : item)
+    .filter((item) => item.quantity > 0));
+  const checkout = async () => {
+    if (!cart.length || !customerId || checkingOut) return;
+    setCheckingOut(true);
+    try {
+      const order = await apiRequest("/orders", {
+        token,
+        method: "POST",
+        body: {
+          customer_id: customerId,
+          payment_method: paymentMethod,
+          items: cart.map((item) => ({ product_id: item.id, quantity: item.quantity })),
+        },
+      });
+      showToast(`Đã thanh toán đơn ${order.order_id} · ${formatMoney(order.total_value)} cho ${order.customer_name}.`);
+      setCart([]);
+      reloadProducts();
+    } catch (requestError) {
+      showToast(requestError.message);
+      reloadProducts();
+    } finally {
+      setCheckingOut(false);
+    }
   };
 
   return (
@@ -591,77 +561,62 @@ function PointOfSale({ user, showToast }) {
         <section className="pos-products">
           <div className="pos-toolbar"><div className="search-box"><Icon name="Search" size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm sản phẩm hoặc danh mục..." /></div><span>{visibleProducts.length} sản phẩm</span></div>
           <div className="product-grid">
+            {loading && <DataState icon="PackageSearch" title="Đang tải danh mục" description="Đang đồng bộ giá và tồn kho từ SQL Server..." />}
+            {!loading && error && <DataState icon="CircleAlert" title="Không tải được sản phẩm" description={error} action="Thử lại" onAction={reloadProducts} />}
+            {!loading && !error && !visibleProducts.length && <DataState icon="PackageX" title="Không tìm thấy sản phẩm" description="Hãy thử từ khóa hoặc danh mục khác." />}
             {visibleProducts.map((product) => (
               <article className="product-card" key={product.id}>
                 <div className="product-visual"><Icon name={product.category === "Laptop" ? "Laptop" : product.category === "Màn hình" ? "Monitor" : "Package"} size={34} /><span className={product.stock <= product.reorder ? "low" : ""}>{product.stock} còn lại</span></div>
-                <small>{product.id} · {product.category}</small><h3>{product.name}</h3><div><strong>{formatMoney(product.price)}</strong><button onClick={() => addToCart(product)} aria-label={`Thêm ${product.name}`}><Icon name="Plus" size={19} /></button></div>
+                <small>{product.id} · {product.category}</small><h3>{product.name}</h3><div><strong>{formatMoney(product.price)}</strong><button disabled={product.stock <= 0} onClick={() => addToCart(product)} aria-label={`Thêm ${product.name}`}><Icon name="Plus" size={19} /></button></div>
               </article>
             ))}
           </div>
         </section>
         <aside className="cart-panel">
           <div className="cart-head"><div><span>ĐƠN HÀNG HIỆN TẠI</span><h3>Giỏ hàng</h3></div><b>{cart.reduce((sum, item) => sum + item.quantity, 0)}</b></div>
-          <label className="cart-customer"><span>Khách hàng</span><select value={customer} onChange={(event) => setCustomer(event.target.value)}><option>Khách lẻ</option>{customers.map((item) => <option key={item.id}>{item.name}</option>)}</select></label>
+          <label className="cart-customer"><span>Khách hàng</span><select value={customerId} disabled={customerData.loading} onChange={(event) => setCustomerId(event.target.value)}><option value="">{customerData.loading ? "Đang tải khách hàng..." : "Chọn khách hàng"}</option>{customerData.items.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>{customerData.error && <small>{customerData.error}</small>}</label>
+          <label className="cart-customer"><span>Phương thức thanh toán</span><select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}><option value="Cash">Tiền mặt</option><option value="BankTransfer">Chuyển khoản</option></select></label>
           <div className="cart-items">
             {!cart.length && <div className="empty-cart"><Icon name="ShoppingBasket" size={34} /><b>Giỏ hàng đang trống</b><span>Chọn sản phẩm để bắt đầu bán hàng.</span></div>}
             {cart.map((item) => <div className="cart-item" key={item.id}><div><b>{item.name}</b><span>{formatMoney(item.price)}</span></div><div className="quantity"><button onClick={() => changeQuantity(item.id, -1)}><Icon name="Minus" size={14} /></button><span>{item.quantity}</span><button onClick={() => changeQuantity(item.id, 1)}><Icon name="Plus" size={14} /></button></div></div>)}
           </div>
-          <div className="cart-summary"><div><span>Tạm tính</span><b>{formatMoney(total)}</b></div><div><span>Giảm giá</span><b>0 ₫</b></div><div className="cart-total"><span>Tổng thanh toán</span><strong>{formatMoney(total)}</strong></div><button className="checkout-button" disabled={!cart.length} onClick={checkout}><Icon name="CreditCard" size={19} /> Thanh toán</button><small><Icon name="ShieldCheck" size={14} /> Nhân viên chỉ được tạo đơn, không thể sửa giá sản phẩm.</small></div>
+          <div className="cart-summary"><div><span>Khách hàng</span><b>{selectedCustomer?.name || "Chưa chọn"}</b></div><div><span>Tạm tính</span><b>{formatMoney(total)}</b></div><div><span>Giảm giá</span><b>0 ₫</b></div><div className="cart-total"><span>Tổng thanh toán</span><strong>{formatMoney(total)}</strong></div><button className="checkout-button" disabled={!cart.length || !customerId || checkingOut} onClick={checkout}><Icon name="CreditCard" size={19} /> {checkingOut ? "Đang ghi nhận..." : "Thanh toán"}</button><small><Icon name="ShieldCheck" size={14} /> Giá và tồn kho được backend xác nhận lại trước khi tạo đơn.</small></div>
         </aside>
       </div>
     </div>
   );
 }
 
-function CatalogPage() {
+function CatalogPage({ token }) {
   const [query, setQuery] = useState("");
+  const { items: products, loading, error, reload } = useCatalogProducts(token);
   const filtered = products.filter((product) => JSON.stringify(product).toLowerCase().includes(query.toLowerCase()));
-  return <div className="page-stack"><PageHeading eyebrow="TRA CỨU" title="Danh mục sản phẩm" description="Nhân viên được xem giá và tồn kho nhưng không thể thêm, sửa hoặc xóa sản phẩm." /><TableToolbar query={query} onQuery={setQuery} placeholder="Tìm sản phẩm..." count={filtered.length} /><div className="table-card"><table><thead><tr><th>Mã</th><th>Sản phẩm</th><th>Danh mục</th><th>Giá bán</th><th>Tồn kho</th><th>Trạng thái</th></tr></thead><tbody>{filtered.map((product) => <tr key={product.id}><td><b>{product.id}</b></td><td>{product.name}</td><td>{product.category}</td><td><b>{formatMoney(product.price)}</b></td><td>{product.stock}</td><td><StatusBadge value={product.status} /></td></tr>)}</tbody></table></div></div>;
+  return <div className="page-stack"><PageHeading eyebrow="TRA CỨU" title="Danh mục sản phẩm" description="Giá bán và tồn kho được đồng bộ trực tiếp từ SQL Server; nhân viên không thể sửa dữ liệu." /><TableToolbar query={query} onQuery={setQuery} placeholder="Tìm sản phẩm..." count={filtered.length} /><div className="table-card">{loading ? <DataState icon="PackageSearch" title="Đang tải danh mục" description="Đang đồng bộ dữ liệu mới nhất..." /> : error ? <DataState icon="CircleAlert" title="Không tải được sản phẩm" description={error} action="Thử lại" onAction={reload} /> : filtered.length ? <table><thead><tr><th>Mã</th><th>Sản phẩm</th><th>Danh mục</th><th>Giá bán</th><th>Tồn kho</th><th>Trạng thái</th></tr></thead><tbody>{filtered.map((product) => <tr key={product.id}><td><b>{product.id}</b></td><td>{product.name}</td><td>{product.category}</td><td><b>{formatMoney(product.price)}</b></td><td>{product.stock}</td><td><StatusBadge value={product.status} /></td></tr>)}</tbody></table> : <DataState icon="PackageX" title="Không tìm thấy sản phẩm" description="Hãy thử từ khóa hoặc danh mục khác." />}</div></div>;
 }
 
-function PromotionsPage() {
-  return <div className="page-stack"><PageHeading eyebrow="HỖ TRỢ BÁN HÀNG" title="Chương trình khuyến mãi" description="Các chương trình đang áp dụng để nhân viên tư vấn cho khách hàng." /><div className="promotion-grid">{promotions.map((promotion) => <article className={`promotion-card ${promotion.color}`} key={promotion.id}><div><span>{promotion.tag}</span><Icon name="Sparkles" /></div><small>{promotion.expires}</small><h3>{promotion.title}</h3><p>{promotion.description}</p><button>Tư vấn ngay <Icon name="ArrowRight" size={16} /></button></article>)}</div><div className="information-card"><Icon name="CircleHelp" /><div><b>Nhân viên cần lưu ý</b><p>Khuyến mãi chỉ được áp dụng theo điều kiện hệ thống. Mọi thay đổi chương trình phải do Admin thực hiện.</p></div></div></div>;
+function DataState({ icon, title, description, action, onAction }) {
+  return <div className="sale-data-state"><Icon name={icon} size={28} /><b>{title}</b><span>{description}</span>{action && <button type="button" onClick={onAction}>{action}</button>}</div>;
 }
 
-function OrdersPage({ employee = false, user, showToast }) {
-  const visibleOrders = employee ? orders.filter((order) => order.seller.toLowerCase().includes((user?.FullName || "Hoàn").split(" ").slice(-1)[0].toLowerCase())).slice(0, 4) : orders;
-  return <div className="page-stack"><PageHeading eyebrow={employee ? "CÁ NHÂN" : "QUẢN TRỊ ĐƠN HÀNG"} title={employee ? "Đơn hàng của tôi" : "Tất cả đơn hàng"} description={employee ? "Chỉ hiển thị các đơn do tài khoản hiện tại tạo." : "Theo dõi và xử lý toàn bộ đơn hàng trong hệ thống."}>{!employee && <button className="primary-button" onClick={() => showToast?.("Chức năng tạo đơn quản trị sẽ kết nối API ở bước sau.")}><Icon name="Plus" size={17} /> Tạo đơn</button>}</PageHeading><div className="order-summary"><div><span>Hôm nay</span><b>18 đơn</b></div><div><span>Hoàn thành</span><b>14 đơn</b></div><div><span>Đang xử lý</span><b>3 đơn</b></div><div><span>Chờ duyệt</span><b>1 đơn</b></div></div><Panel title={employee ? "Lịch sử bán hàng" : "Danh sách đơn hàng"}>{visibleOrders.length ? <OrdersTable data={visibleOrders} showSeller={!employee} admin={!employee} /> : <div className="empty-table"><Icon name="ReceiptText" size={28} /><b>Chưa có đơn hàng</b><span>Tài khoản này chưa tạo đơn nào.</span></div>}</Panel></div>;
+function PromotionsPage({ token }) {
+  const { items: promotions, loading, error, reload } = usePromotions(token);
+  const [selected, setSelected] = useState(null);
+  return <div className="page-stack"><PageHeading eyebrow="HỖ TRỢ BÁN HÀNG" title="Chương trình khuyến mãi" description="Chỉ hiển thị chương trình còn hiệu lực được đồng bộ từ SQL Server." />{loading ? <DataState icon="Sparkles" title="Đang tải khuyến mãi" description="Đang kiểm tra các chương trình còn hiệu lực..." /> : error ? <DataState icon="CircleAlert" title="Không tải được khuyến mãi" description={error} action="Thử lại" onAction={reload} /> : promotions.length ? <div className="promotion-grid">{promotions.map((promotion) => <article className={`promotion-card ${promotion.color}`} key={promotion.id}><div><span>{promotion.tag}</span><Icon name="Sparkles" /></div><small>{promotion.expires}</small><h3>{promotion.title}</h3><p>{promotion.description}</p><button type="button" onClick={() => setSelected(promotion)}>Tư vấn ngay <Icon name="ArrowRight" size={16} /></button></article>)}</div> : <DataState icon="Sparkles" title="Chưa có khuyến mãi" description="Hiện không có chương trình nào đang trong thời gian áp dụng." />}<div className="information-card"><Icon name="CircleHelp" /><div><b>Nhân viên cần lưu ý</b><p>Kiểm tra đúng hạng khách hàng và thời hạn trước khi tư vấn áp dụng chương trình.</p></div></div>{selected && <Modal title={selected.title} narrow onClose={() => setSelected(null)}><div className="promotion-detail"><span className="tier-badge">{selected.tag}</span><h3>Đối tượng: {selected.customerTier}</h3><p>{selected.description}</p><dl><div><dt>Bắt đầu</dt><dd>{new Intl.DateTimeFormat("vi-VN").format(new Date(`${selected.startDate}T00:00:00`))}</dd></div><div><dt>Kết thúc</dt><dd>{new Intl.DateTimeFormat("vi-VN").format(new Date(`${selected.endDate}T00:00:00`))}</dd></div></dl><button className="primary-button" type="button" onClick={() => setSelected(null)}>Đã hiểu điều kiện</button></div></Modal>}</div>;
 }
 
-function OrdersTable({ data, showSeller = true, admin = false }) {
-  return <div className="table-scroll"><table><thead><tr><th>Mã đơn</th><th>Khách hàng</th>{showSeller && <th>Nhân viên</th>}<th>Giá trị</th><th>Trạng thái</th><th>Ngày</th>{admin && <th />}</tr></thead><tbody>{data.map((order) => <tr key={order.id}><td><b>{order.id}</b></td><td>{order.customer}</td>{showSeller && <td>{order.seller}</td>}<td><b>{formatMoney(order.value)}</b></td><td><StatusBadge value={order.status} /></td><td>{order.date}</td>{admin && <td><button className="row-action"><Icon name="Ellipsis" size={18} /></button></td>}</tr>)}</tbody></table></div>;
+function MyOrdersPage({ token }) {
+  const { data, loading, error, reload } = useMyOrders(token);
+  if (loading) return <DataState icon="ReceiptText" title="Đang tải đơn hàng" description="Đang đọc lịch sử bán hàng của bạn từ SQL Server..." />;
+  if (error) return <DataState icon="CircleAlert" title="Không tải được đơn hàng" description={error} action="Thử lại" onAction={reload} />;
+  const summary = data.summary;
+  return <div className="page-stack"><PageHeading eyebrow="CÁ NHÂN" title="Đơn hàng của tôi" description="Chỉ hiển thị giao dịch do chính tài khoản đang đăng nhập tạo." /><div className="order-summary"><div><span>Doanh thu hôm nay</span><b>{formatMoney(summary.today_revenue)}</b></div><div><span>Đơn hôm nay</span><b>{summary.today_orders} đơn</b></div><div><span>Tổng doanh thu</span><b>{formatMoney(summary.total_revenue)}</b></div><div><span>Tổng đơn đã bán</span><b>{summary.total_orders} đơn</b></div></div><Panel title="Lịch sử bán hàng" subtitle="Dữ liệu thanh toán thật từ SQL Server">{data.items.length ? <div className="table-scroll"><table><thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Giá trị</th><th>Thanh toán</th><th>Thời gian</th></tr></thead><tbody>{data.items.map((order) => <tr key={order.order_id}><td><b>{order.order_id}</b></td><td>{order.customer}</td><td><b>{formatMoney(order.total_value)}</b></td><td><span className="tier-badge">{order.payment_method === "BankTransfer" ? "Chuyển khoản" : "Tiền mặt"}</span></td><td>{formatDateTime(order.paid_at)}</td></tr>)}</tbody></table></div> : <DataState icon="ReceiptText" title="Chưa có đơn hàng" description="Các đơn bạn thanh toán tại quầy sẽ xuất hiện tại đây." />}</Panel></div>;
 }
 
-function ProductsPage({ showToast }) {
-  const [items, setItems] = useState(products);
-  const [query, setQuery] = useState("");
-  const filtered = items.filter((product) => JSON.stringify(product).toLowerCase().includes(query.toLowerCase()));
-  const remove = (id) => { setItems((current) => current.filter((item) => item.id !== id)); showToast("Đã xóa sản phẩm trong dữ liệu giao diện mẫu."); };
-  return <div className="page-stack"><PageHeading eyebrow="QUẢN LÝ DANH MỤC" title="Sản phẩm" description="Admin có thể thêm, sửa và xóa sản phẩm."><button className="primary-button" onClick={() => showToast("Biểu mẫu thêm sản phẩm sẽ kết nối API ở bước backend.")}><Icon name="Plus" size={17} /> Thêm sản phẩm</button></PageHeading><TableToolbar query={query} onQuery={setQuery} placeholder="Tìm sản phẩm..." count={filtered.length} /><div className="table-card"><table><thead><tr><th>Mã</th><th>Sản phẩm</th><th>Giá bán</th><th>Tồn kho</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>{filtered.map((product) => <tr key={product.id}><td><b>{product.id}</b></td><td><div className="table-primary"><span><Icon name="Package" size={17} /></span><div><b>{product.name}</b><small>{product.category}</small></div></div></td><td><b>{formatMoney(product.price)}</b></td><td>{product.stock}</td><td><StatusBadge value={product.status} /></td><td><div className="row-actions"><button onClick={() => showToast(`Mở biểu mẫu sửa ${product.name}.`)} title="Sửa"><Icon name="Pencil" size={16} /></button><button className="delete" onClick={() => remove(product.id)} title="Xóa"><Icon name="Trash2" size={16} /></button></div></td></tr>)}</tbody></table></div></div>;
-}
-
-function CustomersPage({ canWrite, showToast }) {
-  const [items, setItems] = useState(customers);
+function CustomersPage({ token }) {
+  const { items, loading, error, reload } = useCatalogCustomers(token);
   const [query, setQuery] = useState("");
   const filtered = items.filter((customer) => JSON.stringify(customer).toLowerCase().includes(query.toLowerCase()));
-  return <div className="page-stack"><PageHeading eyebrow={canWrite ? "QUẢN LÝ DỮ LIỆU" : "TRA CỨU"} title="Khách hàng" description={canWrite ? "Thêm, cập nhật và quản lý hồ sơ khách hàng." : "Tra cứu thông tin phục vụ bán hàng; không có quyền sửa dữ liệu."}>{canWrite && <button className="primary-button" onClick={() => showToast("Biểu mẫu khách hàng sẽ kết nối API ở bước backend.")}><Icon name="UserPlus" size={17} /> Thêm khách hàng</button>}</PageHeading><TableToolbar query={query} onQuery={setQuery} placeholder="Tìm khách hàng..." count={filtered.length} /><div className="table-card"><table><thead><tr><th>Mã</th><th>Khách hàng</th><th>Người liên hệ</th><th>Điện thoại</th><th>Hạng</th><th>Trạng thái</th>{canWrite && <th>Thao tác</th>}</tr></thead><tbody>{filtered.map((customer) => <tr key={customer.id}><td><b>{customer.id}</b></td><td>{customer.name}</td><td>{customer.contact}</td><td>{customer.phone}</td><td><span className="tier-badge">{customer.tier}</span></td><td><StatusBadge value={customer.status} /></td>{canWrite && <td><div className="row-actions"><button onClick={() => showToast(`Mở hồ sơ ${customer.name}.`)}><Icon name="Pencil" size={16} /></button><button className="delete" onClick={() => { setItems((current) => current.filter((item) => item.id !== customer.id)); showToast("Đã xóa khách hàng trong dữ liệu giao diện mẫu."); }}><Icon name="Trash2" size={16} /></button></div></td>}</tr>)}</tbody></table></div></div>;
-}
-
-function InventoryPage({ showToast }) {
-  return <div className="page-stack"><PageHeading eyebrow="VẬN HÀNH KHO" title="Quản lý tồn kho" description="Admin theo dõi số lượng và thực hiện điều chỉnh kho."><button className="primary-button" onClick={() => showToast("Phiếu điều chỉnh kho sẽ kết nối API ở bước backend.")}><Icon name="ArrowLeftRight" size={17} /> Điều chỉnh kho</button></PageHeading><div className="metric-grid compact-metrics"><MetricCard icon="Boxes" label="Tổng mặt hàng" value="216" change="6 nhóm sản phẩm" tone="blue" /><MetricCard icon="PackageCheck" label="Đủ hàng" value="198" change="91,7% danh mục" tone="green" /><MetricCard icon="TriangleAlert" label="Sắp hết" value="16" change="Cần tạo yêu cầu mua" tone="orange" /><MetricCard icon="PackageX" label="Hết hàng" value="2" change="Cần xử lý ngay" tone="violet" /></div><Panel title="Cảnh báo tồn kho" subtitle="Sản phẩm dưới mức nhập lại"><div className="stock-list">{products.filter((product) => product.stock <= product.reorder).map((product) => <div key={product.id}><span className="stock-icon"><Icon name="TriangleAlert" size={18} /></span><div><b>{product.name}</b><small>{product.id} · Mức nhập lại {product.reorder}</small></div><strong>{product.stock} còn lại</strong><button onClick={() => showToast(`Đã tạo yêu cầu nhập ${product.name} ở giao diện mẫu.`)}>Tạo yêu cầu</button></div>)}</div></Panel></div>;
-}
-
-function UsersPage({ showToast }) {
-  const [items, setItems] = useState(employees);
-  return <div className="page-stack"><PageHeading eyebrow="QUẢN TRỊ HỆ THỐNG" title="Tài khoản và vai trò" description="Chỉ Admin được tạo tài khoản quản trị, đổi vai trò hoặc khóa người dùng."><button className="primary-button" onClick={() => showToast("Biểu mẫu cấp tài khoản sẽ kết nối API quản trị.")}><Icon name="UserPlus" size={17} /> Cấp tài khoản</button></PageHeading><div className="permission-callout"><Icon name="ShieldAlert" /><div><b>Nguyên tắc phân quyền</b><p>Frontend chỉ ẩn chức năng để cải thiện trải nghiệm. Backend vẫn phải kiểm tra JWT, trạng thái tài khoản và quyền trên mọi API ghi dữ liệu.</p></div></div><div className="table-card"><table><thead><tr><th>Người dùng</th><th>Tên đăng nhập</th><th>Vai trò</th><th>Trạng thái</th><th>Đăng nhập gần nhất</th><th>Thao tác</th></tr></thead><tbody>{items.map((employee) => <tr key={employee.id}><td><div className="table-primary"><span className="person-avatar">{employee.name.split(" ").slice(-1)[0][0]}</span><b>{employee.name}</b></div></td><td>{employee.username}</td><td><RoleBadge role={employee.role} /></td><td><StatusBadge value={employee.status} /></td><td>{employee.lastLogin}</td><td><div className="row-actions"><button onClick={() => showToast(`Mở phân quyền của ${employee.name}.`)}><Icon name="KeyRound" size={16} /></button><button onClick={() => { setItems((current) => current.map((item) => item.id === employee.id ? { ...item, status: item.status === "Active" ? "Locked" : "Active" } : item)); showToast("Đã thay đổi trạng thái trong giao diện mẫu."); }}><Icon name={employee.status === "Active" ? "Lock" : "LockOpen"} size={16} /></button></div></td></tr>)}</tbody></table></div></div>;
-}
-
-function SettingsPage({ showToast }) {
-  return <div className="page-stack"><PageHeading eyebrow="CẤU HÌNH" title="Cài đặt hệ thống" description="Thiết lập chung dành riêng cho quản trị viên." /><div className="settings-grid"><SettingCard icon="Building2" title="Thông tin doanh nghiệp" description="Tên đơn vị, địa chỉ, mã số thuế và nhận diện." action="Cấu hình" onClick={() => showToast("Mở cấu hình doanh nghiệp.")} /><SettingCard icon="BadgePercent" title="Khuyến mãi" description="Tạo và điều chỉnh chương trình bán hàng." action="Quản lý" onClick={() => showToast("Mở quản lý khuyến mãi.")} /><SettingCard icon="BellRing" title="Thông báo" description="Cảnh báo tồn kho, đơn hàng và phê duyệt." action="Thiết lập" onClick={() => showToast("Mở thiết lập thông báo.")} /><SettingCard icon="ScrollText" title="Nhật ký hoạt động" description="Theo dõi thao tác nhạy cảm của người dùng." action="Xem nhật ký" onClick={() => showToast("Audit log sẽ được làm ở bước RBAC backend.")} /></div></div>;
-}
-
-function SettingCard({ icon, title, description, action, onClick }) {
-  return <article className="setting-card"><span><Icon name={icon} /></span><div><h3>{title}</h3><p>{description}</p><button onClick={onClick}>{action} <Icon name="ArrowRight" size={15} /></button></div></article>;
+  return <div className="page-stack"><PageHeading eyebrow="TRA CỨU" title="Khách hàng" description="Danh sách khách hàng hoạt động được đồng bộ trực tiếp từ SQL Server; nhân viên chỉ có quyền xem." /><TableToolbar query={query} onQuery={setQuery} placeholder="Tìm khách hàng..." count={filtered.length} /><div className="table-card">{loading ? <DataState icon="UsersRound" title="Đang tải khách hàng" description="Đang đồng bộ danh sách mới nhất..." /> : error ? <DataState icon="CircleAlert" title="Không tải được khách hàng" description={error} action="Thử lại" onAction={reload} /> : filtered.length ? <table><thead><tr><th>Mã</th><th>Khách hàng</th><th>Người liên hệ</th><th>Điện thoại</th><th>Hạng</th><th>Trạng thái</th></tr></thead><tbody>{filtered.map((customer) => <tr key={customer.id}><td><b>{customer.id}</b></td><td>{customer.name}</td><td>{customer.contact}</td><td>{customer.phone}</td><td><span className="tier-badge">{customer.tier}</span></td><td><StatusBadge value={customer.status} /></td></tr>)}</tbody></table> : <DataState icon="UsersRound" title="Không tìm thấy khách hàng" description="Hãy thử từ khóa khác." />}</div></div>;
 }
 
 function TableToolbar({ query, onQuery, placeholder, count }) {
@@ -692,10 +647,66 @@ function Modal({ title, onClose, children, narrow = false }) {
 
 export default function App() {
   const [session, setSession] = useState(null);
+  const [restoringSession, setRestoringSession] = useState(true);
 
-  if (!session) {
-    return <LoginScreen onAuthenticated={(user, portal) => setSession({ user, portal })} />;
+  useEffect(() => {
+    let active = true;
+    const savedSession = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (!savedSession) {
+      setRestoringSession(false);
+      return () => { active = false; };
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(savedSession);
+    } catch {
+      window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      setRestoringSession(false);
+      return () => { active = false; };
+    }
+
+    if (!parsed?.token) {
+      window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      setRestoringSession(false);
+      return () => { active = false; };
+    }
+
+    apiRequest("/me", { token: parsed.token })
+      .then((user) => {
+        if (!active) return;
+        const portal = portalFromRole(user.RoleID);
+        if (!portal) throw new Error("Unsupported role");
+        setSession({ user, portal, token: parsed.token });
+      })
+      .catch(() => {
+        window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      })
+      .finally(() => {
+        if (active) setRestoringSession(false);
+      });
+
+    return () => { active = false; };
+  }, []);
+
+  const authenticate = (user, portal, token) => {
+    const nextSession = { user, portal, token };
+    window.sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(nextSession));
+    setSession(nextSession);
+  };
+
+  const logout = () => {
+    window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    setSession(null);
+  };
+
+  if (restoringSession) {
+    return <main className="session-loading"><LogoMark /><b>Đang khôi phục phiên làm việc</b><span>DX-Lab đang xác thực tài khoản với máy chủ...</span></main>;
   }
 
-  return <Workspace user={session.user} portal={session.portal} onLogout={() => setSession(null)} />;
+  if (!session) {
+    return <LoginScreen onAuthenticated={authenticate} />;
+  }
+
+  return <Workspace user={session.user} portal={session.portal} token={session.token} onLogout={logout} />;
 }

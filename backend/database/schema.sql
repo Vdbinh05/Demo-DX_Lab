@@ -51,6 +51,12 @@ BEGIN
 END;
 GO
 
+IF COL_LENGTH(N'dbo.Users', N'LastLoginAt') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD LastLoginAt datetime2 NULL;
+END;
+GO
+
 IF OBJECT_ID(N'dbo.Customers', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.Customers
@@ -68,6 +74,13 @@ BEGIN
 END;
 GO
 
+IF COL_LENGTH(N'dbo.Customers', N'CreatedAt') IS NULL
+BEGIN
+    ALTER TABLE dbo.Customers ADD CreatedAt datetime2 NULL
+        CONSTRAINT DF_Customers_CreatedAt DEFAULT SYSDATETIME();
+END;
+GO
+
 IF OBJECT_ID(N'dbo.Products', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.Products
@@ -81,6 +94,32 @@ BEGIN
         ReorderLevel int NOT NULL
             CONSTRAINT DF_Products_ReorderLevel DEFAULT 10,
         CONSTRAINT PK_Products PRIMARY KEY CLUSTERED (ProductID)
+    );
+END;
+GO
+
+IF OBJECT_ID(N'dbo.Promotions', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Promotions
+    (
+        PromotionID varchar(20) NOT NULL,
+        Title nvarchar(255) NOT NULL,
+        Description nvarchar(1000) NOT NULL,
+        Tag nvarchar(30) NOT NULL,
+        CustomerTier nvarchar(30) NULL,
+        StartDate date NOT NULL
+            CONSTRAINT DF_Promotions_StartDate DEFAULT CONVERT(date, GETDATE()),
+        EndDate date NOT NULL,
+        Status nvarchar(20) NOT NULL
+            CONSTRAINT DF_Promotions_Status DEFAULT N'Active',
+        Color varchar(20) NOT NULL
+            CONSTRAINT DF_Promotions_Color DEFAULT 'blue',
+        CreatedAt datetime2 NOT NULL
+            CONSTRAINT DF_Promotions_CreatedAt DEFAULT SYSDATETIME(),
+        UpdatedAt datetime2 NOT NULL
+            CONSTRAINT DF_Promotions_UpdatedAt DEFAULT SYSDATETIME(),
+        CONSTRAINT PK_Promotions PRIMARY KEY CLUSTERED (PromotionID),
+        CONSTRAINT CK_Promotions_DateRange CHECK (EndDate >= StartDate)
     );
 END;
 GO
@@ -122,6 +161,33 @@ BEGIN
         CONSTRAINT FK_SalesOrders_Users FOREIGN KEY (CreatedBy)
             REFERENCES dbo.Users (UserID)
     );
+END;
+GO
+
+IF COL_LENGTH(N'dbo.SalesOrders', N'PaymentMethod') IS NULL
+BEGIN
+    ALTER TABLE dbo.SalesOrders ADD PaymentMethod nvarchar(30) NULL
+        CONSTRAINT DF_SalesOrders_PaymentMethod DEFAULT N'Cash';
+    EXEC(N'UPDATE dbo.SalesOrders SET PaymentMethod = N''Cash'' WHERE PaymentMethod IS NULL;');
+END;
+GO
+
+IF COL_LENGTH(N'dbo.SalesOrders', N'CreatedAt') IS NULL
+BEGIN
+    ALTER TABLE dbo.SalesOrders ADD CreatedAt datetime2 NULL
+        CONSTRAINT DF_SalesOrders_CreatedAt DEFAULT SYSDATETIME();
+    EXEC(N'UPDATE dbo.SalesOrders
+        SET CreatedAt = CAST(OrderDate AS datetime2)
+        WHERE CreatedAt IS NULL AND OrderDate IS NOT NULL;');
+END;
+GO
+
+IF COL_LENGTH(N'dbo.SalesOrders', N'PaidAt') IS NULL
+BEGIN
+    ALTER TABLE dbo.SalesOrders ADD PaidAt datetime2 NULL;
+    EXEC(N'UPDATE dbo.SalesOrders
+        SET PaidAt = COALESCE(CreatedAt, CAST(OrderDate AS datetime2))
+        WHERE Status IN (N''Completed'', N''Paid'', N''Hoàn thành'');');
 END;
 GO
 
@@ -200,6 +266,34 @@ BEGIN
         CONSTRAINT PK_Activities PRIMARY KEY CLUSTERED (ActivityID)
     );
 END;
+GO
+
+IF OBJECT_ID(N'dbo.SystemSettings', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SystemSettings
+    (
+        SettingKey varchar(50) NOT NULL,
+        SettingValue nvarchar(500) NOT NULL,
+        UpdatedAt datetime2 NOT NULL
+            CONSTRAINT DF_SystemSettings_UpdatedAt DEFAULT SYSDATETIME(),
+        UpdatedBy int NULL,
+        CONSTRAINT PK_SystemSettings PRIMARY KEY CLUSTERED (SettingKey),
+        CONSTRAINT FK_SystemSettings_Users FOREIGN KEY (UpdatedBy)
+            REFERENCES dbo.Users (UserID)
+    );
+END;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_SalesOrders_OrderDate' AND object_id = OBJECT_ID(N'dbo.SalesOrders'))
+    CREATE INDEX IX_SalesOrders_OrderDate ON dbo.SalesOrders (OrderDate DESC);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_SalesOrders_CreatedBy' AND object_id = OBJECT_ID(N'dbo.SalesOrders'))
+    CREATE INDEX IX_SalesOrders_CreatedBy ON dbo.SalesOrders (CreatedBy, OrderDate DESC);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_SalesOrderItems_OrderID' AND object_id = OBJECT_ID(N'dbo.SalesOrderItems'))
+    CREATE INDEX IX_SalesOrderItems_OrderID ON dbo.SalesOrderItems (OrderID);
 GO
 
 PRINT N'DXLabCore schema is ready.';

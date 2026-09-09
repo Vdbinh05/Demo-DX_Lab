@@ -1,24 +1,17 @@
-"""FastAPI backend for DX-Lab Core authentication."""
+"""FastAPI entry point for DX-Lab Core."""
 
-import base64
-import hashlib
-import hmac
 import logging
-import os
 import re
-import secrets
-from pathlib import Path
 
 import pyodbc
-from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-
-# Tự đọc cấu hình phát triển cục bộ. Các biến môi trường đã được hệ thống
-# thiết lập vẫn được ưu tiên vì load_dotenv không ghi đè mặc định.
-load_dotenv(dotenv_path=Path(__file__).with_name(".env"))
+from core import current_user, create_access_token, get_connection, hash_password, verify_password
+from routers.admin import router as admin_router
+from routers.catalog import router as catalog_router
+from routers.sales import router as sales_router
 
 
 app = FastAPI()
@@ -32,6 +25,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(admin_router)
+app.include_router(catalog_router)
+app.include_router(sales_router)
 
 
 class LoginRequest(BaseModel):
@@ -45,62 +41,30 @@ class RegisterRequest(BaseModel):
     password: str
 
 
-# Có thể ghi đè các giá trị này bằng biến môi trường khi deploy.
-SQL_SERVER = os.getenv("DXLAB_SQL_SERVER", "localhost")
-SQL_DATABASE = os.getenv("DXLAB_SQL_DATABASE", "DXLabCore")
-SQL_USER = os.getenv("DXLAB_SQL_USER", "sa")
-SQL_PASSWORD = os.getenv("DXLAB_SQL_PASSWORD")
-SQL_DRIVER = os.getenv("DXLAB_SQL_DRIVER", "{ODBC Driver 17 for SQL Server}")
-
-PASSWORD_SCHEME = "pbkdf2_sha256"
-PASSWORD_ITERATIONS = 600_000
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
 PUBLIC_REGISTRATION_ROLE = "Sales"
 
 
-def get_connection():
-    if not SQL_PASSWORD:
-        raise RuntimeError("Chưa cấu hình biến môi trường DXLAB_SQL_PASSWORD.")
-
-    conn_str = (
-        f"DRIVER={SQL_DRIVER};"
-        f"SERVER={SQL_SERVER};"
-        f"DATABASE={SQL_DATABASE};"
-        f"UID={SQL_USER};"
-        f"PWD={SQL_PASSWORD};"
-        "Encrypt=no;"
-        "TrustServerCertificate=yes;"
-    )
-    return pyodbc.connect(conn_str, timeout=5)
-
-
-def hash_password(password: str) -> str:
-    """Hash a password without requiring an additional third-party package."""
-    salt = secrets.token_bytes(16)
-    digest = hashlib.pbkdf2_hmac(
-        "sha256", password.encode("utf-8"), salt, PASSWORD_ITERATIONS
-    )
-    salt_text = base64.urlsafe_b64encode(salt).decode("ascii")
-    digest_text = base64.urlsafe_b64encode(digest).decode("ascii")
-    return f"{PASSWORD_SCHEME}${PASSWORD_ITERATIONS}${salt_text}${digest_text}"
+@app.get("/health")
+def health_check():
+    connection = None
+    try:
+        connection = get_connection()
+        connection.cursor().execute("SELECT 1").fetchone()
+        return {"status": "ok", "database": "connected"}
+    except (pyodbc.Error, RuntimeError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="SQL Server chưa sẵn sàng.",
+        ) from exc
+    finally:
+        if connection is not None:
+            connection.close()
 
 
-def verify_password(password: str, stored_password: str) -> bool:
-    """Verify new PBKDF2 hashes while keeping old plain-text accounts usable."""
-    if stored_password.startswith(f"{PASSWORD_SCHEME}$"):
-        try:
-            _, iterations_text, salt_text, digest_text = stored_password.split("$", 3)
-            salt = base64.urlsafe_b64decode(salt_text.encode("ascii"))
-            expected_digest = base64.urlsafe_b64decode(digest_text.encode("ascii"))
-            candidate_digest = hashlib.pbkdf2_hmac(
-                "sha256", password.encode("utf-8"), salt, int(iterations_text)
-            )
-            return hmac.compare_digest(candidate_digest, expected_digest)
-        except (ValueError, TypeError):
-            return False
-
-    # Tương thích với các tài khoản cũ đang lưu mật khẩu dạng thường.
-    return hmac.compare_digest(password, stored_password)
+@app.get("/me")
+def read_current_user(user: dict = Depends(current_user)):
+    return user
 
 
 def validate_register_data(data: RegisterRequest):
@@ -260,8 +224,25 @@ def login(data: LoginRequest):
             detail="Sai mật khẩu.",
         )
 
+    conn = None
+    try:
+        conn = get_connection()
+        conn.cursor().execute(
+            "UPDATE dbo.Users SET LastLoginAt = SYSDATETIME() WHERE UserID = ?",
+            user_id,
+        )
+        conn.commit()
+    except (pyodbc.Error, RuntimeError):
+        logger.warning("Could not update LastLoginAt for user %s", user_id)
+    finally:
+        if conn is not None:
+            conn.close()
+            conn = None
+
     return {
         "success": True,
+        "access_token": create_access_token(user_id, saved_username, role_id),
+        "token_type": "bearer",
         "user": {
             "UserID": user_id,
             "Username": saved_username,

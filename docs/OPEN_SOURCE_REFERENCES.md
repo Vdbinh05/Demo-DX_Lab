@@ -32,6 +32,28 @@ Tài liệu này ghi lại các dự án mã nguồn mở được dùng làm t�
 - Phần sử dụng: đọc các biến kết nối SQL Server từ `backend/.env` trong môi trường phát triển.
 - Cách áp dụng: FastAPI nạp tệp `.env` nằm cạnh `backend/main.py`; biến môi trường của hệ điều hành vẫn được ưu tiên và tệp chứa mật khẩu thật không được commit.
 
+## 5. React-admin
+
+- Repository: <https://github.com/marmelab/react-admin>
+- Tài liệu tính năng: <https://github.com/marmelab/react-admin/blob/master/docs/Features.md>
+- Giấy phép: MIT (phần lõi mã nguồn mở).
+- Phần tham khảo: bố cục danh sách quản trị, tìm kiếm theo nhiều tiêu chí, bảng dữ liệu, trang xem chi tiết và phản hồi loading/error/empty.
+- Cách áp dụng: DX-Lab Core tự viết component React và CSS theo nhận diện riêng; không cài hoặc sao chép nguyên React-admin.
+
+## 6. shadcn/ui
+
+- Repository: <https://github.com/shadcn-ui/ui>
+- Giấy phép: MIT.
+- Phần tham khảo: cách ghép dashboard từ sidebar, card, chart, table và form; ưu tiên màu ngữ nghĩa, trạng thái focus và khả năng truy cập.
+- Cách áp dụng: giao diện Admin dùng các khối nhỏ có một mục đích rõ ràng, loại bỏ thẻ cài đặt không hoạt động và giữ hệ component CSS sẵn có của dự án.
+
+## 7. PyJWT
+
+- Repository: <https://github.com/jpadilla/pyjwt>
+- Giấy phép: MIT.
+- Phần sử dụng: ký và kiểm tra access token giữa React và FastAPI.
+- Cách áp dụng: token chỉ nhận diện phiên đăng nhập; mỗi API Admin vẫn tải lại trạng thái và `RoleID` từ SQL Server trước khi cho phép truy cập.
+
 ## Nguyên tắc sử dụng
 
 - Chỉ sử dụng repository có giấy phép rõ ràng.
@@ -49,5 +71,7 @@ Tài liệu này ghi lại các dự án mã nguồn mở được dùng làm t�
 - Tài khoản đăng ký công khai luôn gửi `role_id: "Sales"`.
 - Nhân viên có khu vực bán hàng, sản phẩm, khuyến mãi, đơn cá nhân và tra cứu khách hàng.
 - Quản trị viên có báo cáo doanh thu, đơn hàng, sản phẩm, khách hàng, kho, tài khoản và cấu hình.
+- Dashboard Admin lấy số liệu trực tiếp từ SQL Server; không dùng các KPI mẫu trong `data.js`.
+- Tìm kiếm toàn hệ thống, thông báo tồn kho, chi tiết đơn, CRUD sản phẩm/khách hàng, điều chỉnh kho và cấu hình doanh nghiệp đều gọi API thật.
 
 > Ghi chú bảo mật: lớp phân quyền frontend không thay thế RBAC ở FastAPI. API thêm, sửa, xóa và xem doanh thu phải kiểm tra JWT cùng quyền của tài khoản ở backend.

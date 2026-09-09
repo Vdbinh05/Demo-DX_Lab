@@ -26,4 +26,22 @@ DX-Lab Core tham khảo các dự án mã nguồn mở sau trong quá trình thi
 - License: BSD-3-Clause
 - Source: <https://github.com/theskumar/python-dotenv>
 
+## React-admin
+
+- Copyright (c) 2016-present Marmelab
+- License: MIT (open-source core)
+- Source: <https://github.com/marmelab/react-admin>
+
+## shadcn/ui
+
+- Copyright (c) 2023 shadcn
+- License: MIT
+- Source: <https://github.com/shadcn-ui/ui>
+
+## PyJWT
+
+- Copyright (c) 2015-2026 José Padilla
+- License: MIT
+- Source: <https://github.com/jpadilla/pyjwt>
+
 Xem chi tiết cách các nguồn được áp dụng tại `docs/OPEN_SOURCE_REFERENCES.md`.

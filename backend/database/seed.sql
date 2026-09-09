@@ -100,10 +100,36 @@ BEGIN TRY
         SELECT 1 FROM dbo.Quotations WHERE QuoteID = 'QT-DEMO-001'
     );
 
+    INSERT INTO dbo.Promotions
+        (PromotionID, Title, Description, Tag, CustomerTier,
+         StartDate, EndDate, Status, Color)
+    SELECT source.PromotionID, source.Title, source.Description, source.Tag,
+           source.CustomerTier, CONVERT(date, GETDATE()),
+           DATEADD(day, source.DurationDays, CONVERT(date, GETDATE())),
+           N'Active', source.Color
+    FROM
+    (
+        VALUES
+            ('KM-DEMO-01', N'Tuần lễ phụ kiện',
+             N'Giảm 15% bàn phím, chuột và tai nghe.', N'-15%', N'Standard', 5, 'violet'),
+            ('KM-DEMO-02', N'Combo văn phòng',
+             N'Mua máy tính kèm màn hình với mức giá ưu đãi theo chương trình.', N'COMBO', N'Doanh nghiệp', 21, 'blue'),
+            ('KM-DEMO-03', N'Khách hàng VIP',
+             N'Tặng gói bảo hành mở rộng cho đơn hàng đủ điều kiện.', N'VIP', N'VIP', 30, 'orange')
+    ) AS source
+        (PromotionID, Title, Description, Tag, CustomerTier, DurationDays, Color)
+    WHERE NOT EXISTS
+    (
+        SELECT 1 FROM dbo.Promotions target
+        WHERE target.PromotionID = source.PromotionID
+    );
+
     INSERT INTO dbo.SalesOrders
-        (OrderID, CustomerID, CreatedBy, TotalValue, Status, OrderDate)
+        (OrderID, CustomerID, CreatedBy, TotalValue, Status, OrderDate,
+         PaymentMethod, CreatedAt, PaidAt)
     SELECT 'SO-DEMO-001', 'CUS-DEMO-001', user_data.UserID,
-           24190000, N'Completed', CONVERT(date, GETDATE())
+           24190000, N'Paid', CONVERT(date, GETDATE()), N'Cash',
+           SYSDATETIME(), SYSDATETIME()
     FROM dbo.Users user_data
     WHERE user_data.Username = 'sales.demo'
       AND NOT EXISTS
@@ -159,6 +185,22 @@ BEGIN TRY
         VALUES
             (CONVERT(varchar(5), GETDATE(), 108), N'Khởi tạo dữ liệu demo DX-Lab Core', N'System');
     END;
+
+    INSERT INTO dbo.SystemSettings (SettingKey, SettingValue)
+    SELECT source.SettingKey, source.SettingValue
+    FROM
+    (
+        VALUES
+            ('company_name', N'DX-Lab Core'),
+            ('company_phone', N''),
+            ('company_address', N''),
+            ('tax_code', N'')
+    ) AS source (SettingKey, SettingValue)
+    WHERE NOT EXISTS
+    (
+        SELECT 1 FROM dbo.SystemSettings target
+        WHERE target.SettingKey = source.SettingKey
+    );
 
     COMMIT TRANSACTION;
     PRINT N'DXLabCore demonstration data is ready.';

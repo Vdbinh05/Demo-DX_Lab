@@ -8,6 +8,9 @@ DX-Lab Core là ứng dụng quản lý bán hàng sử dụng React, FastAPI v�
 DX-Lab-Core/
 ├── frontend/                       # Giao diện React + Vite
 │   ├── src/
+│   │   ├── admin/                  # Các màn quản trị dùng API thật
+│   │   ├── hooks/                  # Đồng bộ catalog và đơn cá nhân
+│   │   └── api.js                  # Lớp gọi FastAPI tập trung
 │   ├── .env.example                # Mẫu địa chỉ API
 │   ├── index.html
 │   ├── package.json
@@ -19,7 +22,12 @@ DX-Lab-Core/
 │   │   ├── init_database.py        # Chạy schema và seed tự động
 │   │   ├── schema.sql              # Tạo database và bảng
 │   │   └── seed.sql                # Dữ liệu demo an toàn
+│   ├── routers/
+│   │   ├── admin.py                # API quản trị và truy vấn báo cáo
+│   │   ├── catalog.py              # Sản phẩm, khách hàng, khuyến mãi dùng chung
+│   │   └── sales.py                # Transaction bán hàng và đơn cá nhân
 │   ├── .env.example                # Mẫu cấu hình SQL Server
+│   ├── core.py                      # Kết nối DB, mật khẩu và access token
 │   ├── main.py
 │   └── requirements.txt
 │
@@ -75,7 +83,7 @@ Script tự động:
 2. Cài dependency FastAPI.
 3. Cài dependency React tại `frontend/node_modules`.
 4. Tạo `backend/.env` và mở bằng Notepad.
-5. Tạo database `DXLabCore`, 10 bảng và dữ liệu demo.
+5. Tạo database `DXLabCore`, 12 bảng và dữ liệu demo.
 
 Khi Notepad mở `backend/.env`, điền tài khoản SQL Server trên chính máy đó:
 
@@ -126,10 +134,11 @@ Hai script có thể chạy lại, không xóa dữ liệu hiện có và không
 Schema tạo các bảng:
 
 - `Roles`, `Users`.
-- `Customers`, `Products`.
+- `Customers`, `Products`, `Promotions`.
 - `SalesOrders`, `SalesOrderItems`.
 - `Quotations`, `PurchaseRequests`.
 - `StockMovements`, `Activities`.
+- `SystemSettings`.
 
 Seed chỉ chứa dữ liệu giả, không chứa mật khẩu SQL Server hoặc dữ liệu khách hàng thật.
 
@@ -175,11 +184,23 @@ Nếu giao diện báo `Không thể kết nối SQL Server`, kiểm tra:
 Đã kết nối SQL Server thật:
 
 - `POST /register`: đăng ký tài khoản.
-- `POST /login`: đăng nhập và trả về `RoleID`.
+- `POST /login`: đăng nhập, trả về `RoleID` và access token có thời hạn.
+- `GET /me`: xác thực lại phiên sau khi tải lại trang.
 - Mật khẩu mới được băm bằng PBKDF2-SHA256.
 - Frontend đối chiếu khu vực Nhân viên/Quản trị viên với vai trò từ backend.
+- Mọi API `/admin/*` kiểm tra token, trạng thái tài khoản và vai trò `Admin` từ SQL Server.
+- Tổng quan, doanh thu, đơn hàng, chi tiết đơn, sản phẩm bán chạy và khách mua hôm nay dùng dữ liệu SQL thật.
+- Admin có thể tìm kiếm toàn hệ thống, xem thông báo tồn kho, quản lý sản phẩm/khách hàng, điều chỉnh kho, cấp/khóa tài khoản và lưu cấu hình doanh nghiệp.
+- Trang đơn hàng chỉ thống kê giao dịch đã thanh toán và hiển thị phương thức `Tiền mặt` hoặc `Chuyển khoản`.
+- Trang Bán hàng và Danh mục của Sale đọc chung giá bán, tồn kho và mã sản phẩm từ SQL Server; dữ liệu tự làm mới khi quay lại tab và định kỳ 15 giây.
+- `POST /orders` tạo đơn, chi tiết đơn, trừ tồn kho và ghi `StockMovements` trong một SQL transaction; giá bán luôn được đọc lại ở backend.
+- `GET /orders/my-orders` trả đúng doanh thu và lịch sử đơn của tài khoản đang đăng nhập.
+- Khách hàng tại POS và trang tra cứu Sale dùng chung dữ liệu từ `GET /catalog/customers`.
+- Trang Khuyến mãi Sale chỉ đọc chương trình còn hiệu lực từ `GET /catalog/promotions`; nút tư vấn mở đúng đối tượng và thời hạn áp dụng.
+- Phiên được giữ trong `sessionStorage`, xác thực lại với backend sau F5 và dùng khóa JWT ổn định qua restart.
+- ODBC connection pooling được bật để tái sử dụng kết nối bên dưới sau mỗi lần đóng connection ở cấp request.
 
-Các màn hình nghiệp vụ ngoài đăng nhập và đăng ký vẫn đang dùng dữ liệu demo phía frontend. JWT và kiểm tra RBAC tại từng API là bước backend tiếp theo.
+Màn hình Admin tạo/sửa khuyến mãi và tích hợp thanh toán ngân hàng thật chưa nằm trong phạm vi hiện tại.
 
 ## 10. Mã nguồn mở
 
