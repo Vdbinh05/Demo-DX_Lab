@@ -1,54 +1,25 @@
-import { useEffect, useState } from "react";
+// SPDX-License-Identifier: MIT
+import { useQuery } from "@tanstack/react-query";
 
 import { apiRequest } from "../api";
 
 
 function useLiveCollection(path, token, mapItem) {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [revision, setRevision] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-    let requestController = null;
-
-    const load = async ({ silent = false } = {}) => {
-      requestController?.abort();
-      requestController = new AbortController();
-      if (!silent) setLoading(true);
-      try {
-        const data = await apiRequest(path, { token, signal: requestController.signal });
-        if (!active) return;
-        setItems(data.items.map(mapItem));
-        setError("");
-      } catch (requestError) {
-        if (!active || requestError.name === "AbortError") return;
-        setError(requestError.message);
-      } finally {
-        if (active && !silent) setLoading(false);
-      }
-    };
-
-    load();
-    const refresh = () => load({ silent: true });
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-    const interval = window.setInterval(refresh, 15000);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-
-    return () => {
-      active = false;
-      requestController?.abort();
-      window.clearInterval(interval);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
-  }, [mapItem, path, revision, token]);
-
-  return { items, loading, error, reload: () => setRevision((value) => value + 1) };
+  const query = useQuery({
+    queryKey: ["live-collection", path, token],
+    queryFn: ({ signal }) => apiRequest(path, { token, signal }),
+    enabled: Boolean(token),
+    staleTime: 0,
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: "always",
+  });
+  return {
+    items: (query.data?.items || []).map(mapItem),
+    loading: query.isPending,
+    error: query.error?.message || "",
+    reload: query.refetch,
+  };
 }
 
 

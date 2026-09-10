@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """Shared product catalogue APIs for authenticated workspaces."""
 
 import logging

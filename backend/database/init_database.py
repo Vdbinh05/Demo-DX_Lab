@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """Create and seed the local DX-Lab Core SQL Server database."""
 
 from __future__ import annotations

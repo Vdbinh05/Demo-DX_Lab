@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: MIT
+* text=auto
+
+*.bat text eol=crlf
+*.css text eol=lf
+*.html text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.sql text eol=lf

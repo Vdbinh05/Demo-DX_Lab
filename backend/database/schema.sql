@@ -1,4 +1,5 @@
-/*
+/* SPDX-License-Identifier: MIT
+
     DX-Lab Core - SQL Server schema
 
     This script is safe to run more than once. It creates the DXLabCore
@@ -191,6 +192,55 @@ BEGIN
 END;
 GO
 
+IF COL_LENGTH(N'dbo.SalesOrders', N'PaymentStatus') IS NULL
+BEGIN
+    ALTER TABLE dbo.SalesOrders ADD PaymentStatus nvarchar(30) NULL
+        CONSTRAINT DF_SalesOrders_PaymentStatus DEFAULT N'Paid';
+    EXEC(N'UPDATE dbo.SalesOrders
+        SET PaymentStatus = CASE
+            WHEN Status IN (N''Completed'', N''Paid'', N''Hoàn thành'') THEN N''Paid''
+            ELSE N''Unpaid'' END
+        WHERE PaymentStatus IS NULL;');
+END;
+GO
+
+IF COL_LENGTH(N'dbo.SalesOrders', N'OrderStatus') IS NULL
+BEGIN
+    ALTER TABLE dbo.SalesOrders ADD OrderStatus nvarchar(30) NULL
+        CONSTRAINT DF_SalesOrders_OrderStatus DEFAULT N'Completed';
+    EXEC(N'UPDATE dbo.SalesOrders
+        SET OrderStatus = CASE
+            WHEN Status IN (N''Cancelled'', N''Canceled'', N''Đã hủy'') THEN N''Cancelled''
+            ELSE N''Completed'' END
+        WHERE OrderStatus IS NULL;');
+END;
+GO
+
+IF COL_LENGTH(N'dbo.SalesOrders', N'IdempotencyKey') IS NULL
+BEGIN
+    ALTER TABLE dbo.SalesOrders ADD IdempotencyKey varchar(64) NULL;
+END;
+GO
+
+IF COL_LENGTH(N'dbo.SalesOrders', N'RequestFingerprint') IS NULL
+BEGIN
+    ALTER TABLE dbo.SalesOrders ADD RequestFingerprint char(64) NULL;
+END;
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'UX_SalesOrders_IdempotencyKey'
+      AND object_id = OBJECT_ID(N'dbo.SalesOrders')
+)
+BEGIN
+    CREATE UNIQUE NONCLUSTERED INDEX UX_SalesOrders_IdempotencyKey
+        ON dbo.SalesOrders (IdempotencyKey)
+        WHERE IdempotencyKey IS NOT NULL;
+END;
+GO
+
 IF OBJECT_ID(N'dbo.SalesOrderItems', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.SalesOrderItems
@@ -208,6 +258,17 @@ BEGIN
         CONSTRAINT FK_SalesOrderItems_Products FOREIGN KEY (ProductID)
             REFERENCES dbo.Products (ProductID)
     );
+END;
+GO
+
+IF COL_LENGTH(N'dbo.SalesOrderItems', N'ProductNameSnapshot') IS NULL
+BEGIN
+    ALTER TABLE dbo.SalesOrderItems ADD ProductNameSnapshot nvarchar(255) NULL;
+    EXEC(N'UPDATE items
+        SET ProductNameSnapshot = products.ProductName
+        FROM dbo.SalesOrderItems items
+        JOIN dbo.Products products ON products.ProductID = items.ProductID
+        WHERE items.ProductNameSnapshot IS NULL;');
 END;
 GO
 

@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: MIT
+name: Bug report
+description: Report a reproducible problem in DX-Lab Core
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Problem
+      description: Describe what happened and what you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start the application...
+        2. Sign in as...
+        3. Open...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Commit or release
+      description: Paste the Git commit or release version being tested.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Windows, Python, Node.js, SQL Server and ODBC versions.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Remove passwords, tokens and personal data before pasting.
+      render: shell

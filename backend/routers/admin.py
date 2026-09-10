@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """Real SQL Server APIs used by the administrator workspace."""
 
 import logging
@@ -341,11 +342,12 @@ def order_detail(order_id: str, _: dict = Depends(admin_user)):
             raise HTTPException(status_code=404, detail="Không tìm thấy đơn hàng.")
         cursor.execute(
             """
-            SELECT items.ProductID AS product_id, products.ProductName AS name,
+            SELECT items.ProductID AS product_id,
+                   COALESCE(items.ProductNameSnapshot, products.ProductName) AS name,
                    items.Quantity AS quantity, items.UnitPrice AS unit_price,
                    items.SubTotal AS subtotal
             FROM dbo.SalesOrderItems items
-            JOIN dbo.Products products ON products.ProductID = items.ProductID
+            LEFT JOIN dbo.Products products ON products.ProductID = items.ProductID
             WHERE items.OrderID = ? ORDER BY items.ItemID
             """,
             order_id,

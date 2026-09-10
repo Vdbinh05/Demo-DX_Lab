@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 export const portalConfig = {
   employee: {
     label: "Nhân viên",

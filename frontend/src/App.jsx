@@ -1,4 +1,7 @@
-import React, { useEffect, useState } from "react";
+// SPDX-License-Identifier: MIT
+import React, { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeftRight,
   ArrowRight,
@@ -400,9 +403,20 @@ function LogoMark() {
 function Workspace({ user, portal, token, onLogout }) {
   const config = portalConfig[portal];
   const allowedMenu = menus[portal].filter((item) => permissionsByPortal[portal].has(item.permission));
-  const [page, setPage] = useState(config.landingPage);
+  const location = useLocation();
+  const routeNavigate = useNavigate();
+  const routePrefix = `/${portal}/`;
+  const requestedPage = location.pathname.startsWith(routePrefix)
+    ? location.pathname.slice(routePrefix.length).split("/")[0]
+    : "";
+  const page = allowedMenu.some((item) => item.id === requestedPage) ? requestedPage : config.landingPage;
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toast, setToast] = useState("");
+
+  useEffect(() => {
+    const canonicalPath = `${routePrefix}${page}`;
+    if (location.pathname !== canonicalPath) routeNavigate(canonicalPath, { replace: true });
+  }, [location.pathname, page, routeNavigate, routePrefix]);
 
   const showToast = (message) => {
     setToast(message);
@@ -417,15 +431,20 @@ function Workspace({ user, portal, token, onLogout }) {
       showToast("Bạn không có quyền truy cập khu vực này.");
       return;
     }
-    setPage(nextPage);
+    routeNavigate(`${routePrefix}${nextPage}`);
     setSidebarOpen(false);
+  };
+
+  const logout = () => {
+    onLogout();
+    routeNavigate("/", { replace: true });
   };
 
   return (
     <div className={`workspace-app portal-${portal}`}>
       <Sidebar portal={portal} menu={allowedMenu} page={page} onNavigate={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="workspace-main">
-        <Header user={user} portal={portal} token={token} pageLabel={currentItem?.label} onNavigate={navigate} onLogout={onLogout} onOpenMenu={() => setSidebarOpen(true)} />
+        <Header user={user} portal={portal} token={token} pageLabel={currentItem?.label} onNavigate={navigate} onLogout={logout} onOpenMenu={() => setSidebarOpen(true)} />
         <div className="workspace-content">
           <PageRouter page={page} portal={portal} token={token} user={user} onNavigate={navigate} showToast={showToast} />
         </div>
@@ -493,16 +512,23 @@ function PageHeading({ eyebrow, title, description, children }) {
 }
 
 function PointOfSale({ token, user, showToast }) {
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [cart, setCart] = useState([]);
   const [customerId, setCustomerId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [checkingOut, setCheckingOut] = useState(false);
+  const checkoutKeyRef = useRef(null);
   const { items: products, loading, error, reload: reloadProducts } = useCatalogProducts(token);
   const customerData = useCatalogCustomers(token);
   const visibleProducts = products.filter((product) => `${product.name} ${product.category}`.toLowerCase().includes(query.toLowerCase()));
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const selectedCustomer = customerData.items.find((item) => item.id === customerId);
+  const cartSignature = cart.map((item) => `${item.id}:${item.quantity}`).join("|");
+
+  useEffect(() => {
+    checkoutKeyRef.current = null;
+  }, [cartSignature, customerId, paymentMethod]);
 
   useEffect(() => {
     if (!customerId && customerData.items.length) {
@@ -532,6 +558,8 @@ function PointOfSale({ token, user, showToast }) {
     .filter((item) => item.quantity > 0));
   const checkout = async () => {
     if (!cart.length || !customerId || checkingOut) return;
+    const idempotencyKey = checkoutKeyRef.current || window.crypto.randomUUID();
+    checkoutKeyRef.current = idempotencyKey;
     setCheckingOut(true);
     try {
       const order = await apiRequest("/orders", {
@@ -540,12 +568,18 @@ function PointOfSale({ token, user, showToast }) {
         body: {
           customer_id: customerId,
           payment_method: paymentMethod,
+          idempotency_key: idempotencyKey,
           items: cart.map((item) => ({ product_id: item.id, quantity: item.quantity })),
         },
       });
       showToast(`Đã thanh toán đơn ${order.order_id} · ${formatMoney(order.total_value)} cho ${order.customer_name}.`);
+      checkoutKeyRef.current = null;
       setCart([]);
-      reloadProducts();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["live-collection"] }),
+        queryClient.invalidateQueries({ queryKey: ["my-orders"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin"] }),
+      ]);
     } catch (requestError) {
       showToast(requestError.message);
       reloadProducts();

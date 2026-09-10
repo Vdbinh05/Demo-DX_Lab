@@ -1,37 +1,21 @@
-import { useEffect, useState } from "react";
+// SPDX-License-Identifier: MIT
+import { useQuery } from "@tanstack/react-query";
 
 import { apiRequest } from "../api";
 
 
 export function useMyOrders(token) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [revision, setRevision] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-    const controller = new AbortController();
-
-    apiRequest("/orders/my-orders", { token, signal: controller.signal })
-      .then((response) => {
-        if (!active) return;
-        setData(response);
-        setError("");
-      })
-      .catch((requestError) => {
-        if (!active || requestError.name === "AbortError") return;
-        setError(requestError.message);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, [revision, token]);
-
-  return { data, loading, error, reload: () => setRevision((value) => value + 1) };
+  const query = useQuery({
+    queryKey: ["my-orders", token],
+    queryFn: ({ signal }) => apiRequest("/orders/my-orders", { token, signal }),
+    enabled: Boolean(token),
+    staleTime: 0,
+    refetchOnWindowFocus: "always",
+  });
+  return {
+    data: query.data || null,
+    loading: query.isPending,
+    error: query.error?.message || "",
+    reload: query.refetch,
+  };
 }

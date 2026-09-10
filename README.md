@@ -27,8 +27,11 @@ DX-Lab-Core/
 │   │   ├── catalog.py              # Sản phẩm, khách hàng, khuyến mãi dùng chung
 │   │   └── sales.py                # Transaction bán hàng và đơn cá nhân
 │   ├── .env.example                # Mẫu cấu hình SQL Server
-│   ├── core.py                      # Kết nối DB, mật khẩu và access token
+│   ├── config.py                    # Nạp và kiểm tra biến môi trường
+│   ├── database.py                  # Kết nối pool và kiểm tra SQL khi khởi động
+│   ├── core.py                      # Mật khẩu, access token và RBAC
 │   ├── main.py
+│   ├── tests/                       # Kiểm thử luồng bán hàng có hoàn nguyên
 │   └── requirements.txt
 │
 ├── docs/                           # Tài liệu nguồn mở
@@ -93,7 +96,14 @@ DXLAB_SQL_DATABASE=DXLabCore
 DXLAB_SQL_USER=sa
 DXLAB_SQL_PASSWORD=MAT_KHAU_SQL_SERVER_CUA_BAN
 DXLAB_SQL_DRIVER={ODBC Driver 17 for SQL Server}
+DXLAB_AUTH_SECRET=
+DXLAB_ACCESS_TOKEN_MINUTES=480
+DXLAB_CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 ```
+
+Ở máy phát triển có thể để trống `DXLAB_AUTH_SECRET`; backend tạo khóa cục bộ
+ổn định trong tệp đã được Git bỏ qua. Khi triển khai thật phải cấp một khóa bí
+mật dài bằng biến môi trường.
 
 Lưu và đóng Notepad để quá trình cài đặt tiếp tục. Không ghi mật khẩu thật vào README, `.env.example` hoặc bất kỳ file nào được Git theo dõi.
 
@@ -166,6 +176,19 @@ cd frontend
 npm run build
 ```
 
+### Kiểm tra luồng đơn hàng
+
+Khởi động backend trước, sau đó từ thư mục gốc chạy:
+
+```powershell
+.\backend\.venv\Scripts\python.exe .\backend\tests\integration_registration_smoke.py
+.\backend\.venv\Scripts\python.exe .\backend\tests\integration_order_smoke.py
+```
+
+Hai bài kiểm tra tạo tài khoản và đơn hàng tạm, kiểm tra đăng nhập, thanh toán,
+trừ kho, Admin xem chi tiết và chống gửi trùng; cuối cùng tự xóa dữ liệu thử và
+hoàn lại tồn kho.
+
 ## 8. Lỗi kết nối SQL Server
 
 Nếu giao diện báo `Không thể kết nối SQL Server`, kiểm tra:
@@ -194,17 +217,26 @@ Nếu giao diện báo `Không thể kết nối SQL Server`, kiểm tra:
 - Trang đơn hàng chỉ thống kê giao dịch đã thanh toán và hiển thị phương thức `Tiền mặt` hoặc `Chuyển khoản`.
 - Trang Bán hàng và Danh mục của Sale đọc chung giá bán, tồn kho và mã sản phẩm từ SQL Server; dữ liệu tự làm mới khi quay lại tab và định kỳ 15 giây.
 - `POST /orders` tạo đơn, chi tiết đơn, trừ tồn kho và ghi `StockMovements` trong một SQL transaction; giá bán luôn được đọc lại ở backend.
+- Mỗi lần thanh toán có `idempotency_key`; gửi lại cùng giao dịch không tạo đơn hoặc trừ kho lần hai.
+- Đơn đã thanh toán được ghi `PaymentStatus=Paid`, `OrderStatus=Completed` và không có API hủy ở phạm vi bản thử nghiệm.
+- Chi tiết đơn lưu snapshot tên và đơn giá tại thời điểm bán, không bị thay đổi khi Admin sửa sản phẩm sau này.
 - `GET /orders/my-orders` trả đúng doanh thu và lịch sử đơn của tài khoản đang đăng nhập.
 - Khách hàng tại POS và trang tra cứu Sale dùng chung dữ liệu từ `GET /catalog/customers`.
 - Trang Khuyến mãi Sale chỉ đọc chương trình còn hiệu lực từ `GET /catalog/promotions`; nút tư vấn mở đúng đối tượng và thời hạn áp dụng.
-- Phiên được giữ trong `sessionStorage`, xác thực lại với backend sau F5 và dùng khóa JWT ổn định qua restart.
+- Phiên được giữ trong `sessionStorage`, URL được quản lý bởi React Router, xác thực lại với backend sau F5 và dùng khóa JWT ổn định qua restart.
+- TanStack Query quản lý cache/làm mới API, TanStack Table render bảng đơn Admin và Recharts render biểu đồ doanh thu.
 - ODBC connection pooling được bật để tái sử dụng kết nối bên dưới sau mỗi lần đóng connection ở cấp request.
+- Backend kiểm tra kết nối và các bảng SQL Server bắt buộc ngay khi khởi động, đồng thời trả lỗi cấu hình dễ chẩn đoán.
 
 Màn hình Admin tạo/sửa khuyến mãi và tích hợp thanh toán ngân hàng thật chưa nằm trong phạm vi hiện tại.
 
 ## 10. Mã nguồn mở
 
 - [Nguồn mở được tham khảo](docs/OPEN_SOURCE_REFERENCES.md)
+- [Ma trận thành phần mã nguồn mở](docs/OPEN_SOURCE_COMPONENTS.md)
 - [Thông báo thư viện bên thứ ba](THIRD_PARTY_NOTICES.md)
+- [Giấy phép MIT của dự án](LICENSE)
+- [Hướng dẫn đóng góp](CONTRIBUTING.md)
+- [Chính sách bảo mật](SECURITY.md)
 
 Không commit `.env`, mật khẩu SQL Server, file backup chứa dữ liệu thật hoặc thông tin cá nhân.

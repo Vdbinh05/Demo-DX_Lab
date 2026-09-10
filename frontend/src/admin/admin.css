@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 .admin-stack {
   display: grid;
   gap: 24px;
@@ -144,8 +145,8 @@
 
 .real-chart {
   height: 300px;
-  padding: 34px 24px 20px;
-  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 58px, #eef2f7 59px, #eef2f7 60px);
+  padding: 16px 18px 12px 8px;
+  background: #fff;
 }
 
 .real-chart-bars {

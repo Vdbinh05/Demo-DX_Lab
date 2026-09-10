@@ -1,4 +1,5 @@
 @echo off
+rem SPDX-License-Identifier: MIT
 setlocal
 cd /d "%~dp0"
 

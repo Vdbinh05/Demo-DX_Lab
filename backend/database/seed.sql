@@ -1,4 +1,5 @@
-/*
+/* SPDX-License-Identifier: MIT
+
     DX-Lab Core - safe demonstration data
 
     This file contains no SQL Server password and no real customer data.

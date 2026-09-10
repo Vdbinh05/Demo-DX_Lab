@@ -1,27 +1,70 @@
+# SPDX-License-Identifier: MIT
 """FastAPI entry point for DX-Lab Core."""
 
+from contextlib import asynccontextmanager
 import logging
 import re
+import time
+import uuid
 
 import pyodbc
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from config import settings
 from core import current_user, create_access_token, get_connection, hash_password, verify_password
+from database import check_database, database_error_message
 from routers.admin import router as admin_router
 from routers.catalog import router as catalog_router
 from routers.sales import router as sales_router
 
 
-app = FastAPI()
 logger = logging.getLogger(__name__)
 
-# Cho phép React (thường chạy ở cổng 5173) gọi API trong môi trường phát triển.
-# Khi deploy, hãy thay "*" bằng domain frontend thật.
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """Fail fast with an actionable message when SQL Server is not ready."""
+    try:
+        result = check_database()
+        logger.info(
+            "SQL Server startup check passed: database=%s required_tables=%s",
+            result["database"],
+            result["required_tables"],
+        )
+    except (pyodbc.Error, RuntimeError) as exc:
+        message = database_error_message(exc) if isinstance(exc, pyodbc.Error) else str(exc)
+        logger.critical("Backend startup stopped: %s", message)
+        raise RuntimeError(message) from exc
+    yield
+
+
+app = FastAPI(title="DX-Lab Core API", version="0.1.0", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def request_context(request: Request, call_next):
+    """Attach a traceable request ID and log one concise access record."""
+    request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
+    started_at = time.perf_counter()
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    logger.info(
+        "%s %s -> %s in %.1f ms request_id=%s",
+        request.method,
+        request.url.path,
+        response.status_code,
+        (time.perf_counter() - started_at) * 1000,
+        request_id,
+    )
+    return response
+
+
+# Chỉ cho phép các origin được khai báo trong backend/.env gọi API.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=list(settings.cors_origins),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -47,19 +90,13 @@ PUBLIC_REGISTRATION_ROLE = "Sales"
 
 @app.get("/health")
 def health_check():
-    connection = None
     try:
-        connection = get_connection()
-        connection.cursor().execute("SELECT 1").fetchone()
-        return {"status": "ok", "database": "connected"}
+        return check_database()
     except (pyodbc.Error, RuntimeError) as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="SQL Server chưa sẵn sàng.",
+            detail=database_error_message(exc) if isinstance(exc, pyodbc.Error) else str(exc),
         ) from exc
-    finally:
-        if connection is not None:
-            connection.close()
 
 
 @app.get("/me")

@@ -1,77 +1,86 @@
-# Nguồn mở tham khảo cho DX-Lab Core
+<!-- SPDX-License-Identifier: MIT -->
 
-Tài liệu này ghi lại các dự án mã nguồn mở được dùng làm tài liệu thiết kế và kỹ thuật cho giao diện phân quyền của DX-Lab Core.
+# Nguồn mở trong DX-Lab Core
 
-## 1. Full Stack FastAPI Template
+Tài liệu này tách rõ hai khái niệm để nhóm có thể trình bày minh bạch trước ban
+giám khảo: **thành phần được dùng trực tiếp** và **nguồn chỉ được nghiên cứu**.
 
-- Repository: <https://github.com/fastapi/full-stack-fastapi-template>
-- Giấy phép: MIT
-- Phần tham khảo: kiến trúc React + FastAPI, màn hình đăng nhập, dashboard quản trị, luồng xác thực JWT và cách tách quyền quản trị.
-- Cách áp dụng: DX-Lab Core giữ FastAPI làm backend xác thực, React/Vite làm frontend và tách khu vực làm việc theo vai trò. Mã giao diện trong dự án này được viết lại cho nghiệp vụ bán hàng và SQL Server.
+## 1. Thành phần được sử dụng trực tiếp
 
-## 2. React Router
+### React Router
 
 - Repository: <https://github.com/remix-run/react-router>
-- Ví dụ xác thực: <https://github.com/remix-run/react-router/tree/main/examples/auth>
-- Giấy phép: MIT
-- Phần tham khảo: protected route, chuyển hướng sau đăng nhập và nguyên tắc kiểm tra quyền trước khi hiển thị màn hình.
-- Cách áp dụng: bản frontend hiện tại có một lớp điều hướng tập trung (`PageRouter`) và kiểm tra permission trước khi render. Khi backend JWT hoàn thiện, có thể chuyển lớp này sang React Router mà không thay đổi ma trận quyền.
-
-## 3. Material UI Dashboard Template
-
-- Repository: <https://github.com/mui/material-ui>
-- Dashboard template: <https://github.com/mui/material-ui/tree/master/docs/data/material/getting-started/templates/dashboard>
-- Giấy phép: MIT
-- Phần tham khảo: bố cục sidebar, top bar, thẻ KPI, bảng quản trị và dashboard responsive.
-- Cách áp dụng: DX-Lab Core tự xây dựng component và CSS riêng, không chép nguyên template hoặc thêm Material UI vào dependency.
-
-## 4. python-dotenv
-
-- Repository: <https://github.com/theskumar/python-dotenv>
-- Giấy phép: BSD-3-Clause
-- Phần sử dụng: đọc các biến kết nối SQL Server từ `backend/.env` trong môi trường phát triển.
-- Cách áp dụng: FastAPI nạp tệp `.env` nằm cạnh `backend/main.py`; biến môi trường của hệ điều hành vẫn được ưu tiên và tệp chứa mật khẩu thật không được commit.
-
-## 5. React-admin
-
-- Repository: <https://github.com/marmelab/react-admin>
-- Tài liệu tính năng: <https://github.com/marmelab/react-admin/blob/master/docs/Features.md>
-- Giấy phép: MIT (phần lõi mã nguồn mở).
-- Phần tham khảo: bố cục danh sách quản trị, tìm kiếm theo nhiều tiêu chí, bảng dữ liệu, trang xem chi tiết và phản hồi loading/error/empty.
-- Cách áp dụng: DX-Lab Core tự viết component React và CSS theo nhận diện riêng; không cài hoặc sao chép nguyên React-admin.
-
-## 6. shadcn/ui
-
-- Repository: <https://github.com/shadcn-ui/ui>
 - Giấy phép: MIT.
-- Phần tham khảo: cách ghép dashboard từ sidebar, card, chart, table và form; ưu tiên màu ngữ nghĩa, trạng thái focus và khả năng truy cập.
-- Cách áp dụng: giao diện Admin dùng các khối nhỏ có một mục đích rõ ràng, loại bỏ thẻ cài đặt không hoạt động và giữ hệ component CSS sẵn có của dự án.
+- Mã được dùng qua package `react-router-dom`.
+- Ứng dụng: URL thật cho từng khu vực như `/admin/overview` và
+  `/employee/pos`, điều hướng sau đăng nhập và khôi phục đúng trang sau F5.
 
-## 7. PyJWT
+### TanStack Query
 
-- Repository: <https://github.com/jpadilla/pyjwt>
+- Repository: <https://github.com/TanStack/query>
 - Giấy phép: MIT.
-- Phần sử dụng: ký và kiểm tra access token giữa React và FastAPI.
-- Cách áp dụng: token chỉ nhận diện phiên đăng nhập; mỗi API Admin vẫn tải lại trạng thái và `RoleID` từ SQL Server trước khi cho phép truy cập.
+- Mã được dùng qua package `@tanstack/react-query`.
+- Ứng dụng: tải, cache, làm mới và đồng bộ sản phẩm, khách hàng, khuyến mãi,
+  đơn cá nhân và dữ liệu quản trị từ API.
 
-## Nguyên tắc sử dụng
+### TanStack Table
 
-- Chỉ sử dụng repository có giấy phép rõ ràng.
-- Không sao chép nguyên một sản phẩm hoặc xóa thông tin bản quyền của tác giả gốc.
-- Ghi nguồn và giấy phép khi áp dụng thêm thư viện hoặc đoạn mã đáng kể.
-- Không lấy mã nguồn không rõ tác giả/giấy phép từ bài viết hoặc trang chia sẻ ngẫu nhiên.
-- Frontend chỉ kiểm soát trải nghiệm; backend là nơi bắt buộc phải kiểm tra quyền thật.
+- Repository: <https://github.com/TanStack/table>
+- Giấy phép: MIT.
+- Mã được dùng qua package `@tanstack/react-table`.
+- Ứng dụng: mô hình cột và render bảng đơn hàng quản trị; dữ liệu vẫn đến từ
+  FastAPI và SQL Server.
 
-## Phạm vi của bản dựng này
+### Recharts
 
-- Lựa chọn cổng đăng nhập Nhân viên hoặc Quản trị viên.
-- Đối chiếu lựa chọn cổng với `RoleID` do FastAPI trả về.
-- `Sales`, `Warehouse`, `Employee` thuộc cổng Nhân viên.
-- Chỉ `Admin` thuộc cổng Quản trị viên; `CEO` và `Manager` chưa được tự động cấp quyền Admin.
-- Tài khoản đăng ký công khai luôn gửi `role_id: "Sales"`.
-- Nhân viên có khu vực bán hàng, sản phẩm, khuyến mãi, đơn cá nhân và tra cứu khách hàng.
-- Quản trị viên có báo cáo doanh thu, đơn hàng, sản phẩm, khách hàng, kho, tài khoản và cấu hình.
-- Dashboard Admin lấy số liệu trực tiếp từ SQL Server; không dùng các KPI mẫu trong `data.js`.
-- Tìm kiếm toàn hệ thống, thông báo tồn kho, chi tiết đơn, CRUD sản phẩm/khách hàng, điều chỉnh kho và cấu hình doanh nghiệp đều gọi API thật.
+- Repository: <https://github.com/recharts/recharts>
+- Giấy phép: MIT.
+- Mã được dùng qua package `recharts`.
+- Ứng dụng: biểu đồ doanh thu theo tháng co giãn theo kích thước màn hình.
 
-> Ghi chú bảo mật: lớp phân quyền frontend không thay thế RBAC ở FastAPI. API thêm, sửa, xóa và xem doanh thu phải kiểm tra JWT cùng quyền của tài khoản ở backend.
+### FastAPI và hệ sinh thái backend
+
+- FastAPI cung cấp router, dependency injection, validation và OpenAPI.
+- Pydantic kiểm tra payload đầu vào.
+- Uvicorn chạy ASGI server.
+- pyodbc kết nối SQL Server với connection pooling.
+- python-dotenv nạp cấu hình phát triển từ `backend/.env`.
+- PyJWT ký và xác minh access token.
+
+Danh sách phiên bản, giấy phép và liên kết nguồn đầy đủ nằm tại
+`THIRD_PARTY_NOTICES.md`.
+
+## 2. Nguồn được nghiên cứu, không sao chép nguyên khối
+
+### Full Stack FastAPI Template
+
+- Repository: <https://github.com/fastapi/full-stack-fastapi-template>
+- Giấy phép: MIT.
+- Nội dung nghiên cứu: cách phân lớp frontend/backend, xác thực và cấu hình.
+- Phần DX-Lab Core vẫn được viết theo nghiệp vụ bán hàng và SQL Server riêng.
+
+### Material UI Dashboard, React-admin và shadcn/ui
+
+- Material UI: <https://github.com/mui/material-ui> — MIT.
+- React-admin: <https://github.com/marmelab/react-admin> — MIT cho phần lõi.
+- shadcn/ui: <https://github.com/shadcn-ui/ui> — MIT.
+- Nội dung nghiên cứu: sidebar, KPI, bảng, trạng thái loading/error/empty và
+  khả năng truy cập.
+- Các package này không nằm trong `package.json`; giao diện hiện tại dùng CSS
+  và component do nhóm viết.
+
+## 3. Quy tắc khi bổ sung mã nguồn mở
+
+1. Kiểm tra repository chính thức và giấy phép trước khi tải hoặc chép mã.
+2. Ưu tiên cài dependency có phiên bản khóa thay vì chép tệp không rõ nguồn.
+3. Nếu chỉnh sửa một đoạn mã được lấy trực tiếp, giữ bản quyền đầu tệp và ghi
+   đường dẫn tệp, commit/tag nguồn, giấy phép và phần đã thay đổi.
+4. Cập nhật `THIRD_PARTY_NOTICES.md`, tài liệu này và lockfile trong cùng commit.
+5. Không đưa mã GPL/AGPL hoặc mã không có giấy phép vào dự án nếu chưa đánh giá
+   tác động phân phối với cả nhóm.
+
+## 4. Phạm vi bản thử nghiệm
+
+SQL Server tiếp tục là cơ sở dữ liệu của bản nộp thử cho giảng viên. Việc đổi
+sang PostgreSQL chỉ được xem xét khi đề chính thức tháng 10 yêu cầu; đó không
+phải công việc của giai đoạn hiện tại.

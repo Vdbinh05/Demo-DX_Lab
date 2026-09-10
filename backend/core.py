@@ -1,10 +1,10 @@
-"""Shared database and authentication helpers for DX-Lab Core."""
+# SPDX-License-Identifier: MIT
+"""Shared authentication helpers for DX-Lab Core."""
 
 import base64
 import hashlib
 import hmac
 import logging
-import os
 import re
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -12,25 +12,18 @@ from pathlib import Path
 
 import jwt
 import pyodbc
-from dotenv import load_dotenv
 from fastapi import Header, HTTPException, status
 
-
-load_dotenv(dotenv_path=Path(__file__).with_name(".env"))
+from config import settings
+from database import get_connection
 
 logger = logging.getLogger(__name__)
-
-SQL_SERVER = os.getenv("DXLAB_SQL_SERVER", "localhost")
-SQL_DATABASE = os.getenv("DXLAB_SQL_DATABASE", "DXLabCore")
-SQL_USER = os.getenv("DXLAB_SQL_USER", "sa")
-SQL_PASSWORD = os.getenv("DXLAB_SQL_PASSWORD")
-SQL_DRIVER = os.getenv("DXLAB_SQL_DRIVER", "{ODBC Driver 17 for SQL Server}")
 
 AUTH_SECRET_FILE = Path(__file__).resolve().parent / ".auth-secret"
 
 
 def _load_auth_secret() -> str:
-    configured = (os.getenv("DXLAB_AUTH_SECRET") or "").strip()
+    configured = settings.auth_secret
     if configured and configured != "replace-with-a-long-random-secret":
         return configured
 
@@ -52,33 +45,11 @@ def _load_auth_secret() -> str:
 
 AUTH_SECRET = _load_auth_secret()
 AUTH_ALGORITHM = "HS256"
-ACCESS_TOKEN_MINUTES = int(os.getenv("DXLAB_ACCESS_TOKEN_MINUTES", "480"))
+ACCESS_TOKEN_MINUTES = settings.access_token_minutes
 
 PASSWORD_SCHEME = "pbkdf2_sha256"
 PASSWORD_ITERATIONS = 600_000
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
-
-# pyodbc reuses underlying ODBC connections after close(), reducing handshake
-# overhead while keeping the request-level connection lifecycle simple.
-pyodbc.pooling = True
-
-
-def get_connection():
-    """Open a short-lived SQL Server connection."""
-    if not SQL_PASSWORD:
-        raise RuntimeError("Chưa cấu hình biến môi trường DXLAB_SQL_PASSWORD.")
-
-    connection_string = (
-        f"DRIVER={SQL_DRIVER};"
-        f"SERVER={SQL_SERVER};"
-        f"DATABASE={SQL_DATABASE};"
-        f"UID={SQL_USER};"
-        f"PWD={SQL_PASSWORD};"
-        "Encrypt=no;"
-        "TrustServerCertificate=yes;"
-    )
-    return pyodbc.connect(connection_string, timeout=5)
-
 
 def hash_password(password: str) -> str:
     salt = secrets.token_bytes(16)

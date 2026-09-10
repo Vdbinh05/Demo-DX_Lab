@@ -1,4 +1,16 @@
+// SPDX-License-Identifier: MIT
 import React, { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
   ArrowDownToLine,
   ArrowLeftRight,
@@ -50,47 +62,21 @@ const now = new Date();
 const currentMonth = `${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
 
 function useRemote(path, token) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [version, setVersion] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-    let controller = null;
-
-    const load = ({ silent = false } = {}) => {
-      controller?.abort();
-      controller = new AbortController();
-      if (!silent) setLoading(true);
-      setError("");
-      apiRequest(path, { token, signal: controller.signal })
-        .then((response) => { if (active) setData(response); })
-        .catch((requestError) => {
-          if (active && requestError.name !== "AbortError") setError(requestError.message);
-        })
-        .finally(() => { if (active && !silent) setLoading(false); });
-    };
-
-    load();
-    const refresh = () => load({ silent: true });
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-    const interval = window.setInterval(refresh, 15000);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-
-    return () => {
-      active = false;
-      controller?.abort();
-      window.clearInterval(interval);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
-  }, [path, token, version]);
-
-  return { data, loading, error, reload: () => setVersion((value) => value + 1) };
+  const query = useQuery({
+    queryKey: ["admin", path, token],
+    queryFn: ({ signal }) => apiRequest(path, { token, signal }),
+    enabled: Boolean(token),
+    staleTime: 0,
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: "always",
+  });
+  return {
+    data: query.data || null,
+    loading: query.isPending,
+    error: query.error?.message || "",
+    reload: query.refetch,
+  };
 }
 
 function PageHeader({ eyebrow, title, description, actions }) {
@@ -138,18 +124,22 @@ function Card({ title, subtitle, action, children, className = "" }) {
 }
 
 function RevenueChart({ items = [] }) {
-  const max = Math.max(1, ...items.map((item) => Number(item.revenue) || 0));
+  const chartData = items.map((item) => ({
+    ...item,
+    label: `T${item.month}/${String(item.year).slice(-2)}`,
+    revenue: Number(item.revenue) || 0,
+  }));
   return (
     <div className="real-chart" role="img" aria-label="Biểu đồ doanh thu sáu tháng gần nhất">
-      <div className="real-chart-bars">
-        {items.map((item, index) => (
-          <div className="real-chart-column" key={`${item.year}-${item.month}`}>
-            <div className="real-chart-value">{money(item.revenue)}</div>
-            <i className={index === items.length - 1 ? "current" : ""} style={{ height: `${Math.max(3, (Number(item.revenue) / max) * 100)}%` }} />
-            <span>T{item.month}/{String(item.year).slice(-2)}</span>
-          </div>
-        ))}
-      </div>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData} margin={{ top: 22, right: 18, left: 8, bottom: 4 }} accessibilityLayer>
+          <CartesianGrid stroke="#e9eef6" vertical={false} />
+          <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "#7989a2", fontSize: 11 }} />
+          <YAxis axisLine={false} tickLine={false} width={55} tick={{ fill: "#7989a2", fontSize: 10 }} tickFormatter={(value) => `${Math.round(value / 1_000_000)}M`} />
+          <Tooltip cursor={{ fill: "#f4f7fb" }} formatter={(value) => [money(value), "Doanh thu"]} />
+          <Bar dataKey="revenue" fill="#4a7ff0" radius={[8, 8, 3, 3]} maxBarSize={58} />
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 }
@@ -166,18 +156,25 @@ function PaidBadge({ value }) {
 }
 
 function OrdersTable({ items, onOpen }) {
+  const columns = useMemo(() => [
+    { accessorKey: "order_id", header: "Mã đơn", cell: ({ getValue }) => <b>{getValue()}</b> },
+    { accessorKey: "customer", header: "Khách hàng" },
+    { accessorKey: "seller", header: "Nhân viên" },
+    { accessorKey: "total_value", header: "Giá trị", cell: ({ getValue }) => <b>{money(getValue())}</b> },
+    { accessorKey: "payment_method", header: "Thanh toán", cell: ({ getValue }) => <PaymentBadge method={getValue()} /> },
+    { accessorKey: "created_at", header: "Thời gian", cell: ({ getValue }) => dateTime(getValue()) },
+    {
+      id: "actions",
+      header: "",
+      cell: ({ row }) => <button className="icon-action" onClick={() => onOpen(row.original.order_id)} aria-label={`Xem chi tiết ${row.original.order_id}`}><Ellipsis size={19} /></button>,
+    },
+  ], [onOpen]);
+  const table = useReactTable({ data: items, columns, getCoreRowModel: getCoreRowModel() });
   return (
     <div className="admin-table-wrap">
       <table className="admin-table">
-        <thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Nhân viên</th><th>Giá trị</th><th>Thanh toán</th><th>Thời gian</th><th aria-label="Thao tác" /></tr></thead>
-        <tbody>{items.map((order) => (
-          <tr key={order.order_id}>
-            <td><b>{order.order_id}</b></td><td>{order.customer}</td><td>{order.seller}</td>
-            <td><b>{money(order.total_value)}</b></td><td><PaymentBadge method={order.payment_method} /></td>
-            <td>{dateTime(order.created_at)}</td>
-            <td><button className="icon-action" onClick={() => onOpen(order.order_id)} aria-label={`Xem chi tiết ${order.order_id}`}><Ellipsis size={19} /></button></td>
-          </tr>
-        ))}</tbody>
+        <thead>{table.getHeaderGroups().map((headerGroup) => <tr key={headerGroup.id}>{headerGroup.headers.map((header) => <th key={header.id}>{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}</th>)}</tr>)}</thead>
+        <tbody>{table.getRowModel().rows.map((row) => <tr key={row.id}>{row.getVisibleCells().map((cell) => <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>)}</tr>)}</tbody>
       </table>
     </div>
   );
