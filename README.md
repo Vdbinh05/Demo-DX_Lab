@@ -9,12 +9,14 @@ DX-Lab-Core/
 ├── frontend/                       # Giao diện React + Vite
 │   ├── src/
 │   │   ├── admin/                  # Các màn quản trị dùng API thật
+│   │   ├── config/                 # Cấu hình cổng, menu và permission
 │   │   ├── hooks/                  # Đồng bộ catalog và đơn cá nhân
 │   │   └── api.js                  # Lớp gọi FastAPI tập trung
 │   ├── .env.example                # Mẫu địa chỉ API
 │   ├── index.html
 │   ├── package.json
 │   ├── package-lock.json
+│   ├── README.md                    # Hướng dẫn riêng cho frontend
 │   └── vite.config.js
 │
 ├── backend/                        # FastAPI + SQL Server
@@ -28,13 +30,16 @@ DX-Lab-Core/
 │   │   └── sales.py                # Transaction bán hàng và đơn cá nhân
 │   ├── .env.example                # Mẫu cấu hình SQL Server
 │   ├── config.py                    # Nạp và kiểm tra biến môi trường
-│   ├── database.py                  # Kết nối pool và kiểm tra SQL khi khởi động
+│   ├── db.py                        # Kết nối pool và kiểm tra SQL khi khởi động
 │   ├── core.py                      # Mật khẩu, access token và RBAC
 │   ├── main.py
 │   ├── tests/                       # Kiểm thử luồng bán hàng có hoàn nguyên
+│   ├── README.md                    # Hướng dẫn riêng cho backend
 │   └── requirements.txt
 │
 ├── docs/                           # Tài liệu nguồn mở
+├── LICENSES/                       # Chính sách giấy phép mã được tích hợp
+├── .github/                        # Mẫu issue và pull request
 ├── .gitignore
 ├── CAI_DAT_LAN_DAU.bat             # Cài dự án trên máy mới
 ├── CHAY_DU_AN.bat                  # Chạy frontend và backend
@@ -234,9 +239,22 @@ Màn hình Admin tạo/sửa khuyến mãi và tích hợp thanh toán ngân hà
 
 - [Nguồn mở được tham khảo](docs/OPEN_SOURCE_REFERENCES.md)
 - [Ma trận thành phần mã nguồn mở](docs/OPEN_SOURCE_COMPONENTS.md)
+- [Quy ước cấu trúc dự án](docs/PROJECT_STRUCTURE.md)
+- [Kiểm tra tuân thủ phần mềm nguồn mở](docs/OPEN_SOURCE_COMPLIANCE.md)
 - [Thông báo thư viện bên thứ ba](THIRD_PARTY_NOTICES.md)
 - [Giấy phép MIT của dự án](LICENSE)
 - [Hướng dẫn đóng góp](CONTRIBUTING.md)
 - [Chính sách bảo mật](SECURITY.md)
 
 Không commit `.env`, mật khẩu SQL Server, file backup chứa dữ liệu thật hoặc thông tin cá nhân.
+
+## 11. Giấy phép
+
+DX-Lab Core được phát hành theo giấy phép MIT, một giấy phép được OSI phê duyệt.
+Giấy phép cho phép sử dụng, nghiên cứu, sửa đổi và phân phối lại phần mềm với
+điều kiện giữ nguyên thông báo bản quyền và giấy phép. Toàn văn nằm trong
+[`LICENSE`](LICENSE).
+
+Microsoft SQL Server và Microsoft ODBC Driver chỉ là hạ tầng của bản thử nghiệm
+hiện tại và không phải phần mềm nguồn mở. Nhóm phải đánh giá thay thế khi đề thi
+chính thức yêu cầu một chuỗi công nghệ hoàn toàn mở.

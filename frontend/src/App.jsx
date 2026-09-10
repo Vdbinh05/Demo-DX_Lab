@@ -69,13 +69,12 @@ import {
   menus,
   permissionsByPortal,
   portalConfig,
-} from "./data";
+} from "./config/navigation";
 import { AdminHeaderTools, AdminPageRouter } from "./admin/AdminPages";
-import { apiRequest } from "./api";
+import { API_BASE_URL, apiRequest } from "./api";
 import { useCatalogCustomers, useCatalogProducts, usePromotions } from "./hooks/useCatalogData";
 import { useMyOrders } from "./hooks/useMyOrders";
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/$/, "");
 const LOGIN_API_URL = `${API_BASE_URL}/login`;
 const REGISTER_API_URL = `${API_BASE_URL}/register`;
 const SESSION_STORAGE_KEY = "dxlab.session.v1";

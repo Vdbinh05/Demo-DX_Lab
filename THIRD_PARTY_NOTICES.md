@@ -19,6 +19,13 @@ và `backend/requirements.txt`.
 | Vite | 7.3.6 | MIT | <https://github.com/vitejs/vite> |
 | Vite React plugin | 5.2.0 | MIT | <https://github.com/vitejs/vite-plugin-react> |
 
+Các phụ thuộc gián tiếp được khóa đầy đủ trong `frontend/package-lock.json`.
+Kết quả kiểm tra ngày 10/09/2026 không phát hiện gói thiếu thông tin giấy phép
+hoặc dùng GPL/AGPL. Trong số đó, dữ liệu tương thích trình duyệt của
+`caniuse-lite` 1.0.30001810 được phát hành theo CC BY 4.0; thông tin tác giả và
+giấy phép gốc nằm trong gói npm và tại
+<https://github.com/browserslist/caniuse-lite>.
+
 ## Backend dependencies
 
 | Thành phần | Phiên bản | Giấy phép | Nguồn |
@@ -38,7 +45,8 @@ Các dự án Full Stack FastAPI Template, Material UI, React-admin và shadcn/u
 ghi tại `docs/OPEN_SOURCE_REFERENCES.md`.
 
 Microsoft SQL Server và Microsoft ODBC Driver là thành phần hạ tầng bên ngoài,
-không phải thành phần mã nguồn mở của kho mã này.
+không phải thành phần mã nguồn mở của kho mã này và không được nhóm tuyên bố là
+phần mềm nguồn mở.
 
 Toàn văn giấy phép của phần mềm DX-Lab Core nằm trong `LICENSE`; hướng dẫn kiểm
 tra giấy phép phụ thuộc nằm trong `LICENSES/README.md`.

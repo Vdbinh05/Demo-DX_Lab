@@ -84,3 +84,7 @@ Danh sách phiên bản, giấy phép và liên kết nguồn đầy đủ nằm
 SQL Server tiếp tục là cơ sở dữ liệu của bản nộp thử cho giảng viên. Việc đổi
 sang PostgreSQL chỉ được xem xét khi đề chính thức tháng 10 yêu cầu; đó không
 phải công việc của giai đoạn hiện tại.
+
+> Lưu ý cho bản dự thi chính thức: Microsoft SQL Server và ODBC Driver là thành
+> phần nguồn đóng. Nhóm cần đánh giá hoặc thay thế chúng bằng một hệ quản trị cơ
+> sở dữ liệu nguồn mở khi đề chính thức yêu cầu chuỗi công nghệ hoàn toàn mở.

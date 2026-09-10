@@ -3,7 +3,10 @@
   "python.terminal.activateEnvironment": false,
   "python-envs.terminal.autoActivationType": "off",
   "files.exclude": {
+    "**/.auth-secret": true,
+    "**/.env": true,
     "**/.venv": true,
+    "**/.vite": true,
     "**/__pycache__": true,
     "**/*.pyc": true,
     "**/dist": true,

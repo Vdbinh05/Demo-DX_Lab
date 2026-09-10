@@ -20,7 +20,7 @@ from pathlib import Path
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_ROOT))
 
-from database import get_connection  # noqa: E402
+from db import get_connection  # noqa: E402
 
 
 API_URL = os.getenv("DXLAB_TEST_API_URL", "http://127.0.0.1:8000").rstrip("/")

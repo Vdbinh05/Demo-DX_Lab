@@ -15,7 +15,7 @@ import pyodbc
 from fastapi import Header, HTTPException, status
 
 from config import settings
-from database import get_connection
+from db import get_connection
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +75,11 @@ def verify_password(password: str, stored_password: str) -> bool:
             return False
 
     return hmac.compare_digest(password, stored_password)
+
+
+def password_needs_upgrade(stored_password: str) -> bool:
+    """Identify legacy plaintext passwords that should be re-hashed on login."""
+    return not stored_password.startswith(f"{PASSWORD_SCHEME}$")
 
 
 def create_access_token(user_id: int, username: str, role_id: str) -> str:

@@ -19,6 +19,7 @@ from core import (  # noqa: E402
     AUTH_SECRET,
     create_access_token,
     hash_password,
+    password_needs_upgrade,
     verify_password,
 )
 
@@ -29,6 +30,8 @@ class AuthenticationTests(unittest.TestCase):
         self.assertNotEqual(encoded, "Example@123")
         self.assertTrue(verify_password("Example@123", encoded))
         self.assertFalse(verify_password("wrong-password", encoded))
+        self.assertFalse(password_needs_upgrade(encoded))
+        self.assertTrue(password_needs_upgrade("legacy-password"))
 
     def test_access_token_contains_identity_and_expiry(self):
         token = create_access_token(42, "sales.test", "Sales")

@@ -13,8 +13,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from config import settings
-from core import current_user, create_access_token, get_connection, hash_password, verify_password
-from database import check_database, database_error_message
+from core import (
+    current_user,
+    create_access_token,
+    get_connection,
+    hash_password,
+    password_needs_upgrade,
+    verify_password,
+)
+from db import check_database, database_error_message
 from routers.admin import router as admin_router
 from routers.catalog import router as catalog_router
 from routers.sales import router as sales_router
@@ -264,7 +271,14 @@ def login(data: LoginRequest):
     conn = None
     try:
         conn = get_connection()
-        conn.cursor().execute(
+        cursor = conn.cursor()
+        if password_needs_upgrade(str(password_hash)):
+            cursor.execute(
+                "UPDATE dbo.Users SET PasswordHash = ? WHERE UserID = ?",
+                hash_password(password),
+                user_id,
+            )
+        cursor.execute(
             "UPDATE dbo.Users SET LastLoginAt = SYSDATETIME() WHERE UserID = ?",
             user_id,
         )

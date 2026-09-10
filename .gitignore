@@ -1,16 +1,27 @@
-node_modules/
-dist/
-.vite/
+# Frontend generated files
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+npm-debug.log*
 
-__pycache__/
+# Backend generated files
+backend/__pycache__/
+backend/**/__pycache__/
 *.py[cod]
-.venv/
-venv/
+backend/.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
-.env
-.auth-secret
-.env.*
-!.env.example
+# Local configuration and secrets
+backend/.env
+backend/.auth-secret
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
 
+# Operating-system files
 .DS_Store
 Thumbs.db
