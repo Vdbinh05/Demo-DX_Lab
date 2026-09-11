@@ -400,6 +400,11 @@ tbody tr:hover { background: #fbfcfe; }
 .cart-total strong { color: #163f4c; font-size: 15px; }
 .checkout-button { width: 100%; height: 43px; margin-top: 5px; border-radius: 9px; background: linear-gradient(135deg, #1ca08c, #11766e); color: #fff; display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 9px; font-weight: 800; box-shadow: 0 8px 16px rgba(20,126,111,.17); }
 .cart-summary > small { display: flex; gap: 5px; align-items: flex-start; color: #8b98a8; font-size: 6px; line-height: 1.5; margin-top: 9px; }
+.cart-summary > small.quote-error { color: #c73838; font-size: 7px; }
+.pagination { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 14px; }
+.pagination button { min-height: 34px; padding: 0 12px; border: 1px solid #dce4ed; border-radius: 9px; background: #fff; color: #445870; display: inline-flex; align-items: center; gap: 5px; font-weight: 700; cursor: pointer; }
+.pagination button:disabled { cursor: not-allowed; opacity: .45; }
+.pagination span { color: #718096; font-size: 8px; font-weight: 700; }
 
 .promotion-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .promotion-card { min-height: 225px; padding: 20px; border-radius: 16px; color: #fff; position: relative; overflow: hidden; box-shadow: 0 14px 28px rgba(36,54,90,.12); }

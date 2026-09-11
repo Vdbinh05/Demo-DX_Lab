@@ -50,14 +50,23 @@ giám khảo: **thành phần được dùng trực tiếp** và **nguồn chỉ
 Danh sách phiên bản, giấy phép và liên kết nguồn đầy đủ nằm tại
 `THIRD_PARTY_NOTICES.md`.
 
-## 2. Nguồn được nghiên cứu, không sao chép nguyên khối
+## 2. Nguồn có mã được điều chỉnh vào dự án
 
 ### Full Stack FastAPI Template
 
 - Repository: <https://github.com/fastapi/full-stack-fastapi-template>
 - Giấy phép: MIT.
-- Nội dung nghiên cứu: cách phân lớp frontend/backend, xác thực và cấu hình.
-- Phần DX-Lab Core vẫn được viết theo nghiệp vụ bán hàng và SQL Server riêng.
+- Commit đã khóa: `cb740b656d7a0a6c5e12c7bf8e50343ec94ee9c7`.
+- Mã/cấu trúc được điều chỉnh: application factory, router tổng, cách tách
+  dependency HTTP khỏi hàm bảo mật và bố cục `backend/app`.
+- Tệp áp dụng: `backend/app/main.py`, `backend/app/api/router.py` và
+  `backend/app/api/dependencies.py`.
+- Không lấy lớp SQLModel, PostgreSQL, Alembic hay nghiệp vụ mẫu. DX-Lab Core
+  giữ API bán hàng và SQL Server riêng cho bản thử nghiệm.
+- Toàn văn giấy phép upstream được giữ tại
+  `LICENSES/full-stack-fastapi-template-MIT.txt`.
+
+## 3. Nguồn chỉ được nghiên cứu, không sao chép nguyên khối
 
 ### Material UI Dashboard, React-admin và shadcn/ui
 
@@ -69,7 +78,7 @@ Danh sách phiên bản, giấy phép và liên kết nguồn đầy đủ nằm
 - Các package này không nằm trong `package.json`; giao diện hiện tại dùng CSS
   và component do nhóm viết.
 
-## 3. Quy tắc khi bổ sung mã nguồn mở
+## 4. Quy tắc khi bổ sung mã nguồn mở
 
 1. Kiểm tra repository chính thức và giấy phép trước khi tải hoặc chép mã.
 2. Ưu tiên cài dependency có phiên bản khóa thay vì chép tệp không rõ nguồn.
@@ -79,7 +88,7 @@ Danh sách phiên bản, giấy phép và liên kết nguồn đầy đủ nằm
 5. Không đưa mã GPL/AGPL hoặc mã không có giấy phép vào dự án nếu chưa đánh giá
    tác động phân phối với cả nhóm.
 
-## 4. Phạm vi bản thử nghiệm
+## 5. Phạm vi bản thử nghiệm
 
 SQL Server tiếp tục là cơ sở dữ liệu của bản nộp thử cho giảng viên. Việc đổi
 sang PostgreSQL chỉ được xem xét khi đề chính thức tháng 10 yêu cầu; đó không

@@ -12,9 +12,10 @@ frontend/
 ├── src/
 │   ├── admin/      # trang và style dành cho quản trị viên
 │   ├── config/     # menu, cổng đăng nhập và permission hiển thị
+│   ├── features/   # màn hình độc lập theo nghiệp vụ, bắt đầu với auth
 │   ├── hooks/      # TanStack Query hooks dùng lại giữa các trang
 │   ├── api.js      # một điểm cấu hình URL và xử lý lỗi API
-│   ├── App.jsx     # shell đăng nhập, layout và trang nhân viên
+│   ├── App.jsx     # khôi phục phiên, layout và trang nhân viên
 │   ├── main.jsx    # React providers
 │   └── styles.css
 ├── .env.example

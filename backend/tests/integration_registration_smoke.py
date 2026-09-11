@@ -15,7 +15,7 @@ from pathlib import Path
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_ROOT))
 
-from db import get_connection  # noqa: E402
+from app.database.connection import get_connection  # noqa: E402
 
 
 API_URL = os.getenv("DXLAB_TEST_API_URL", "http://127.0.0.1:8000").rstrip("/")
@@ -40,7 +40,15 @@ def request_json(path: str, *, method: str = "GET", body=None, token=None):
 def cleanup_user(username: str) -> None:
     connection = get_connection()
     try:
-        connection.cursor().execute(
+        cursor = connection.cursor()
+        user = cursor.execute(
+            "SELECT UserID FROM dbo.Users WHERE Username = ? AND RoleID = 'Sales'",
+            username,
+        ).fetchone()
+        if user is None:
+            return
+        cursor.execute("DELETE FROM dbo.Activities WHERE UserID = ?", user.UserID)
+        cursor.execute(
             "DELETE FROM dbo.Users WHERE Username = ? AND RoleID = 'Sales'", username
         )
         connection.commit()
@@ -70,7 +78,7 @@ def main() -> int:
         status, signed_in = request_json(
             "/login",
             method="POST",
-            body={"username": username, "password": password},
+            body={"username": username, "password": password, "portal": "employee"},
         )
         assert status == 200
         token = signed_in["access_token"]

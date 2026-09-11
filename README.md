@@ -20,19 +20,21 @@ DX-Lab-Core/
 │   └── vite.config.js
 │
 ├── backend/                        # FastAPI + SQL Server
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── routes/             # Auth, catalog, orders và admin
+│   │   │   ├── dependencies.py     # Xác thực request và phân quyền
+│   │   │   └── router.py           # Điểm ghép tất cả router
+│   │   ├── core/                   # Cấu hình, mật khẩu và JWT
+│   │   ├── database/               # Kết nối pool và health check
+│   │   ├── schemas/                # Model request/response Pydantic
+│   │   └── main.py                 # App factory và middleware
 │   ├── database/
 │   │   ├── init_database.py        # Chạy schema và seed tự động
 │   │   ├── schema.sql              # Tạo database và bảng
 │   │   └── seed.sql                # Dữ liệu demo an toàn
-│   ├── routers/
-│   │   ├── admin.py                # API quản trị và truy vấn báo cáo
-│   │   ├── catalog.py              # Sản phẩm, khách hàng, khuyến mãi dùng chung
-│   │   └── sales.py                # Transaction bán hàng và đơn cá nhân
 │   ├── .env.example                # Mẫu cấu hình SQL Server
-│   ├── config.py                    # Nạp và kiểm tra biến môi trường
-│   ├── db.py                        # Kết nối pool và kiểm tra SQL khi khởi động
-│   ├── core.py                      # Mật khẩu, access token và RBAC
-│   ├── main.py
+│   ├── main.py                      # Entry point tương thích lệnh chạy cũ
 │   ├── tests/                       # Kiểm thử luồng bán hàng có hoàn nguyên
 │   ├── README.md                    # Hướng dẫn riêng cho backend
 │   └── requirements.txt

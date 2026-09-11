@@ -37,12 +37,22 @@ giấy phép gốc nằm trong gói npm và tại
 | PyJWT | 2.13.0 | MIT | <https://github.com/jpadilla/pyjwt> |
 | Pydantic | 2.13.5 | MIT | <https://github.com/pydantic/pydantic> |
 
+## Mã nguồn được điều chỉnh trực tiếp
+
+Kiến trúc `backend/app`, router tổng và cách tách dependency xác thực được
+điều chỉnh từ **Full Stack FastAPI Template**, commit
+`cb740b656d7a0a6c5e12c7bf8e50343ec94ee9c7`:
+<https://github.com/fastapi/full-stack-fastapi-template>. Nguồn này mang giấy
+phép MIT, Copyright (c) 2019 Sebastián Ramírez. Bản giấy phép được giữ tại
+`LICENSES/full-stack-fastapi-template-MIT.txt` và các tệp điều chỉnh có ghi
+nguồn ngay đầu tệp.
+
 ## Nguồn tham khảo, không phải dependency
 
-Các dự án Full Stack FastAPI Template, Material UI, React-admin và shadcn/ui
-được dùng để nghiên cứu kiến trúc hoặc mẫu tương tác. Chúng không được cài vào
-ứng dụng và không có template nào được sao chép nguyên khối. Cách áp dụng được
-ghi tại `docs/OPEN_SOURCE_REFERENCES.md`.
+Các dự án Material UI, React-admin và shadcn/ui được dùng để nghiên cứu mẫu
+tương tác. Chúng không được cài vào ứng dụng và không có template nào được sao
+chép nguyên khối. Cách áp dụng được ghi tại
+`docs/OPEN_SOURCE_REFERENCES.md`.
 
 Microsoft SQL Server và Microsoft ODBC Driver là thành phần hạ tầng bên ngoài,
 không phải thành phần mã nguồn mở của kho mã này và không được nhóm tuyên bố là

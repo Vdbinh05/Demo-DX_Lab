@@ -5,7 +5,7 @@ export const portalConfig = {
     shortLabel: "Khu vực bán hàng",
     description: "Bán hàng, xem sản phẩm, khuyến mãi và đơn cá nhân.",
     icon: "BadgeCheck",
-    roles: ["Sales", "Warehouse", "Employee"],
+    roles: ["Sales", "Warehouse"],
     landingPage: "pos",
   },
   admin: {
@@ -60,3 +60,16 @@ export const permissionsByPortal = {
     "settings.manage",
   ]),
 };
+
+export const permissionsByRole = {
+  Admin: permissionsByPortal.admin,
+  Sales: permissionsByPortal.employee,
+  Warehouse: new Set(["products.read"]),
+};
+
+export function portalFromRole(roleId) {
+  const normalizedRole = String(roleId || "").trim().toLowerCase();
+  return Object.entries(portalConfig).find(([, config]) =>
+    config.roles.some((role) => role.toLowerCase() === normalizedRole),
+  )?.[0] || null;
+}

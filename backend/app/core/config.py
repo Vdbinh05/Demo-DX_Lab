@@ -10,7 +10,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 
-BACKEND_ROOT = Path(__file__).resolve().parent
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
 ENV_FILE = BACKEND_ROOT / ".env"
 load_dotenv(dotenv_path=ENV_FILE, override=False)
 

@@ -53,9 +53,22 @@ def connect_to_master() -> pyodbc.Connection:
     return pyodbc.connect(connection_string, timeout=10, autocommit=True)
 
 
-def execute_script(connection: pyodbc.Connection, path: Path) -> None:
+def configured_database_name() -> str:
+    database_name = (os.getenv("DXLAB_SQL_DATABASE") or "DXLabCore").strip()
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", database_name):
+        raise RuntimeError(
+            "DXLAB_SQL_DATABASE chỉ được chứa chữ, số, gạch dưới hoặc gạch ngang."
+        )
+    return database_name
+
+
+def execute_script(
+    connection: pyodbc.Connection,
+    path: Path,
+    database_name: str,
+) -> None:
     print(f"Running {path.name}...")
-    sql_text = path.read_text(encoding="utf-8-sig")
+    sql_text = path.read_text(encoding="utf-8-sig").replace("DXLabCore", database_name)
     cursor = connection.cursor()
     for batch in split_batches(sql_text):
         cursor.execute(batch)
@@ -72,17 +85,18 @@ def main() -> int:
     load_dotenv(BACKEND_ENV, override=False)
 
     try:
+        database_name = configured_database_name()
         connection = connect_to_master()
         try:
-            execute_script(connection, DATABASE_DIR / "schema.sql")
-            execute_script(connection, DATABASE_DIR / "seed.sql")
+            execute_script(connection, DATABASE_DIR / "schema.sql", database_name)
+            execute_script(connection, DATABASE_DIR / "seed.sql", database_name)
         finally:
             connection.close()
     except (OSError, RuntimeError, pyodbc.Error) as error:
-        print(f"[ERROR] Could not initialize DXLabCore: {error}")
+        print(f"[ERROR] Could not initialize database: {error}")
         return 1
 
-    print("DXLabCore database initialization completed.")
+    print(f"{database_name} database initialization completed.")
     return 0
 
 

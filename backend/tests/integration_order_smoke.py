@@ -20,7 +20,7 @@ from pathlib import Path
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_ROOT))
 
-from db import get_connection  # noqa: E402
+from app.database.connection import get_connection  # noqa: E402
 
 
 API_URL = os.getenv("DXLAB_TEST_API_URL", "http://127.0.0.1:8000").rstrip("/")
@@ -42,9 +42,11 @@ def request_json(path: str, *, method: str = "GET", body=None, token=None):
         raise AssertionError(f"{method} {path} -> {error.code}: {payload}") from error
 
 
-def login(username: str, password: str) -> str:
+def login(username: str, password: str, portal: str) -> str:
     status, payload = request_json(
-        "/login", method="POST", body={"username": username, "password": password}
+        "/login",
+        method="POST",
+        body={"username": username, "password": password, "portal": portal},
     )
     assert status == 200
     return payload["access_token"]
@@ -54,6 +56,9 @@ def cleanup_order(order_id: str) -> None:
     connection = get_connection()
     try:
         cursor = connection.cursor()
+        promotion = cursor.execute(
+            "SELECT PromotionID FROM dbo.SalesOrders WHERE OrderID = ?", order_id
+        ).fetchone()
         lines = cursor.execute(
             "SELECT ProductID, Quantity FROM dbo.SalesOrderItems WHERE OrderID = ?",
             order_id,
@@ -69,6 +74,11 @@ def cleanup_order(order_id: str) -> None:
             "DELETE FROM dbo.Activities WHERE Description LIKE ?", f"%{order_id}%"
         )
         cursor.execute("DELETE FROM dbo.SalesOrders WHERE OrderID = ?", order_id)
+        if promotion and promotion.PromotionID:
+            cursor.execute(
+                "UPDATE dbo.Promotions SET UsedCount = CASE WHEN UsedCount > 0 THEN UsedCount - 1 ELSE 0 END WHERE PromotionID = ?",
+                promotion.PromotionID,
+            )
         connection.commit()
     except Exception:
         connection.rollback()
@@ -79,50 +89,90 @@ def cleanup_order(order_id: str) -> None:
 
 def main() -> int:
     order_id = ""
+    sales_token = ""
+    admin_token = ""
     connection = get_connection()
     try:
         cursor = connection.cursor()
         product = cursor.execute(
             """
-            SELECT TOP 1 ProductID, Stock
-            FROM dbo.Products
-            WHERE Stock > 0
-            ORDER BY ProductID
+            SELECT TOP 1 products.ProductID, products.Stock,
+                   promotions.PromotionID, promotions.DiscountValue
+            FROM dbo.Products products
+            JOIN dbo.Promotions promotions
+              ON LOWER(promotions.AppliedCategory) = LOWER(products.Category)
+            WHERE products.Stock > 0
+              AND LOWER(promotions.Status) = N'active'
+              AND promotions.DiscountType = 'PERCENT'
+              AND promotions.DiscountValue > 0
+              AND promotions.StartDate <= CONVERT(date, GETDATE())
+              AND promotions.EndDate >= CONVERT(date, GETDATE())
+            ORDER BY products.ProductID
             """
         ).fetchone()
+        assert product is not None
         customer = cursor.execute(
             """
-            SELECT TOP 1 CustomerID
-            FROM dbo.Customers
-            WHERE LOWER(COALESCE(Status, N'Active')) = N'active'
-            ORDER BY CustomerID
-            """
+            SELECT TOP 1 customers.CustomerID
+            FROM dbo.Customers customers
+            JOIN dbo.Promotions promotions
+              ON LOWER(promotions.CustomerTier) = LOWER(customers.Tier)
+            WHERE promotions.PromotionID = ?
+              AND LOWER(COALESCE(customers.Status, N'Active')) = N'active'
+            ORDER BY customers.CustomerID
+            """,
+            product.PromotionID,
         ).fetchone()
-        assert product is not None and customer is not None
+        assert customer is not None
         product_id = str(product.ProductID)
         customer_id = str(customer.CustomerID)
         initial_stock = int(product.Stock)
+        promotion_id = str(product.PromotionID)
     finally:
         connection.close()
 
     try:
-        sales_token = login("sales.demo", "Sales@123")
-        admin_token = login("admin.demo", "Admin@123")
+        sales_token = login("sales.demo", "Sales@123", "employee")
+        admin_token = login("admin.demo", "Admin@123", "admin")
         key = f"smoke-{uuid.uuid4()}"
         payload = {
             "customer_id": customer_id,
             "items": [{"product_id": product_id, "quantity": 1}],
             "payment_method": "Cash",
             "idempotency_key": key,
+            "promotion_id": promotion_id,
         }
+
+        status, preview = request_json(
+            "/orders/preview",
+            method="POST",
+            body={
+                "customer_id": customer_id,
+                "items": payload["items"],
+                "promotion_id": promotion_id,
+            },
+            token=sales_token,
+        )
+        assert status == 200
+        assert preview["discount_value"] > 0
+        assert preview["subtotal_value"] > preview["total_value"]
+        payload["expected_total_value"] = preview["total_value"]
 
         status, created = request_json(
             "/orders", method="POST", body=payload, token=sales_token
         )
+        if status == 201:
+            order_id = str(created.get("order_id") or "")
         assert status == 201 and created["duplicate"] is False
         assert created["payment_status"] == "Paid"
         assert created["order_status"] == "Completed"
-        order_id = created["order_id"]
+        assert created["discount_value"] > 0
+        assert created["subtotal_value"] > created["total_value"]
+        assert created["promotion_id"] == promotion_id
+        assert created["subtotal_value"] == preview["subtotal_value"]
+        assert created["discount_value"] == preview["discount_value"]
+        assert created["total_value"] == preview["total_value"]
+        assert order_id
 
         status, repeated = request_json(
             "/orders", method="POST", body=payload, token=sales_token
@@ -171,14 +221,20 @@ def main() -> int:
             connection.close()
 
         print(
-            "PASS: paid order, stock reduction, Admin detail and idempotent retry "
-            "were verified."
+            "PASS: paid order, promotion discount, stock reduction, Admin detail "
+            "and idempotent retry were verified."
         )
         return 0
     finally:
         if order_id:
             cleanup_order(order_id)
             print(f"CLEANUP: removed temporary order {order_id} and restored stock.")
+        for token in (sales_token, admin_token):
+            if token:
+                try:
+                    request_json("/logout", method="POST", token=token)
+                except AssertionError:
+                    pass
 
 
 if __name__ == "__main__":

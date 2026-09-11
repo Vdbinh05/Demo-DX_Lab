@@ -125,6 +125,16 @@ BEGIN TRY
         WHERE target.PromotionID = source.PromotionID
     );
 
+    UPDATE dbo.Promotions
+    SET DiscountType = 'PERCENT', DiscountValue = 15,
+        MinOrderValue = 0, AppliedCategory = N'Phụ kiện'
+    WHERE PromotionID = 'KM-DEMO-01' AND DiscountValue = 0;
+
+    UPDATE dbo.Promotions
+    SET DiscountType = 'FIXED', DiscountValue = 1200000,
+        MinOrderValue = 10000000
+    WHERE PromotionID = 'KM-DEMO-02' AND DiscountValue = 0;
+
     INSERT INTO dbo.SalesOrders
         (OrderID, CustomerID, CreatedBy, TotalValue, Status, OrderDate,
          PaymentMethod, CreatedAt, PaidAt)

@@ -58,6 +58,23 @@ BEGIN
 END;
 GO
 
+IF OBJECT_ID(N'dbo.UserSessions', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.UserSessions
+    (
+        TokenID char(32) NOT NULL,
+        UserID int NOT NULL,
+        CreatedAt datetime2 NOT NULL
+            CONSTRAINT DF_UserSessions_CreatedAt DEFAULT SYSDATETIME(),
+        ExpiresAt datetime2 NOT NULL,
+        RevokedAt datetime2 NULL,
+        CONSTRAINT PK_UserSessions PRIMARY KEY CLUSTERED (TokenID),
+        CONSTRAINT FK_UserSessions_Users FOREIGN KEY (UserID)
+            REFERENCES dbo.Users (UserID) ON DELETE CASCADE
+    );
+END;
+GO
+
 IF OBJECT_ID(N'dbo.Customers', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.Customers
@@ -144,6 +161,46 @@ BEGIN
 END;
 GO
 
+IF COL_LENGTH(N'dbo.Promotions', N'DiscountType') IS NULL
+BEGIN
+    ALTER TABLE dbo.Promotions ADD DiscountType varchar(10) NOT NULL
+        CONSTRAINT DF_Promotions_DiscountType DEFAULT 'PERCENT';
+END;
+GO
+
+IF COL_LENGTH(N'dbo.Promotions', N'DiscountValue') IS NULL
+BEGIN
+    ALTER TABLE dbo.Promotions ADD DiscountValue decimal(18, 2) NOT NULL
+        CONSTRAINT DF_Promotions_DiscountValue DEFAULT 0;
+END;
+GO
+
+IF COL_LENGTH(N'dbo.Promotions', N'MinOrderValue') IS NULL
+BEGIN
+    ALTER TABLE dbo.Promotions ADD MinOrderValue decimal(18, 0) NOT NULL
+        CONSTRAINT DF_Promotions_MinOrderValue DEFAULT 0;
+END;
+GO
+
+IF COL_LENGTH(N'dbo.Promotions', N'MaxUses') IS NULL
+    ALTER TABLE dbo.Promotions ADD MaxUses int NULL;
+GO
+
+IF COL_LENGTH(N'dbo.Promotions', N'UsedCount') IS NULL
+BEGIN
+    ALTER TABLE dbo.Promotions ADD UsedCount int NOT NULL
+        CONSTRAINT DF_Promotions_UsedCount DEFAULT 0;
+END;
+GO
+
+IF COL_LENGTH(N'dbo.Promotions', N'AppliedProductID') IS NULL
+    ALTER TABLE dbo.Promotions ADD AppliedProductID varchar(20) NULL;
+GO
+
+IF COL_LENGTH(N'dbo.Promotions', N'AppliedCategory') IS NULL
+    ALTER TABLE dbo.Promotions ADD AppliedCategory nvarchar(50) NULL;
+GO
+
 IF OBJECT_ID(N'dbo.SalesOrders', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.SalesOrders
@@ -226,6 +283,25 @@ IF COL_LENGTH(N'dbo.SalesOrders', N'RequestFingerprint') IS NULL
 BEGIN
     ALTER TABLE dbo.SalesOrders ADD RequestFingerprint char(64) NULL;
 END;
+GO
+
+IF COL_LENGTH(N'dbo.SalesOrders', N'SubtotalValue') IS NULL
+BEGIN
+    ALTER TABLE dbo.SalesOrders ADD SubtotalValue decimal(18, 0) NULL;
+    EXEC(N'UPDATE dbo.SalesOrders SET SubtotalValue = TotalValue
+           WHERE SubtotalValue IS NULL;');
+END;
+GO
+
+IF COL_LENGTH(N'dbo.SalesOrders', N'DiscountValue') IS NULL
+BEGIN
+    ALTER TABLE dbo.SalesOrders ADD DiscountValue decimal(18, 0) NOT NULL
+        CONSTRAINT DF_SalesOrders_DiscountValue DEFAULT 0;
+END;
+GO
+
+IF COL_LENGTH(N'dbo.SalesOrders', N'PromotionID') IS NULL
+    ALTER TABLE dbo.SalesOrders ADD PromotionID varchar(20) NULL;
 GO
 
 IF NOT EXISTS
@@ -314,6 +390,24 @@ BEGIN
 END;
 GO
 
+IF COL_LENGTH(N'dbo.StockMovements', N'Reason') IS NULL
+    ALTER TABLE dbo.StockMovements ADD Reason nvarchar(255) NULL;
+GO
+
+IF COL_LENGTH(N'dbo.StockMovements', N'PerformedBy') IS NULL
+    ALTER TABLE dbo.StockMovements ADD PerformedBy int NULL;
+GO
+
+IF COL_LENGTH(N'dbo.StockMovements', N'CreatedAt') IS NULL
+BEGIN
+    ALTER TABLE dbo.StockMovements ADD CreatedAt datetime2 NULL
+        CONSTRAINT DF_StockMovements_CreatedAt DEFAULT SYSDATETIME();
+    EXEC(N'UPDATE dbo.StockMovements
+           SET CreatedAt = CAST(MovementDate AS datetime2)
+           WHERE CreatedAt IS NULL AND MovementDate IS NOT NULL;');
+END;
+GO
+
 IF OBJECT_ID(N'dbo.Activities', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.Activities
@@ -345,6 +439,30 @@ BEGIN
 END;
 GO
 
+IF COL_LENGTH(N'dbo.Activities', N'UserID') IS NULL
+    ALTER TABLE dbo.Activities ADD UserID int NULL;
+GO
+
+IF COL_LENGTH(N'dbo.Activities', N'Action') IS NULL
+    ALTER TABLE dbo.Activities ADD Action varchar(50) NULL;
+GO
+
+IF COL_LENGTH(N'dbo.Activities', N'EntityType') IS NULL
+    ALTER TABLE dbo.Activities ADD EntityType varchar(50) NULL;
+GO
+
+IF COL_LENGTH(N'dbo.Activities', N'EntityID') IS NULL
+    ALTER TABLE dbo.Activities ADD EntityID varchar(50) NULL;
+GO
+
+IF COL_LENGTH(N'dbo.Activities', N'OldValues') IS NULL
+    ALTER TABLE dbo.Activities ADD OldValues nvarchar(max) NULL;
+GO
+
+IF COL_LENGTH(N'dbo.Activities', N'NewValues') IS NULL
+    ALTER TABLE dbo.Activities ADD NewValues nvarchar(max) NULL;
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_SalesOrders_OrderDate' AND object_id = OBJECT_ID(N'dbo.SalesOrders'))
     CREATE INDEX IX_SalesOrders_OrderDate ON dbo.SalesOrders (OrderDate DESC);
 GO
@@ -353,8 +471,84 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_SalesOrders_CreatedBy
     CREATE INDEX IX_SalesOrders_CreatedBy ON dbo.SalesOrders (CreatedBy, OrderDate DESC);
 GO
 
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_SalesOrders_CustomerDate' AND object_id = OBJECT_ID(N'dbo.SalesOrders'))
+    CREATE INDEX IX_SalesOrders_CustomerDate ON dbo.SalesOrders (CustomerID, OrderDate DESC);
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_SalesOrderItems_OrderID' AND object_id = OBJECT_ID(N'dbo.SalesOrderItems'))
     CREATE INDEX IX_SalesOrderItems_OrderID ON dbo.SalesOrderItems (OrderID);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_Promotions_DiscountType')
+    ALTER TABLE dbo.Promotions ADD CONSTRAINT CK_Promotions_DiscountType
+        CHECK (DiscountType IN ('PERCENT', 'FIXED'));
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_Promotions_DiscountValue')
+    ALTER TABLE dbo.Promotions ADD CONSTRAINT CK_Promotions_DiscountValue
+        CHECK (DiscountValue >= 0 AND (DiscountType <> 'PERCENT' OR DiscountValue <= 100));
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_Promotions_Usage')
+    ALTER TABLE dbo.Promotions ADD CONSTRAINT CK_Promotions_Usage
+        CHECK (UsedCount >= 0 AND (MaxUses IS NULL OR MaxUses > 0));
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_Products_NonNegativeValues')
+    ALTER TABLE dbo.Products WITH CHECK ADD CONSTRAINT CK_Products_NonNegativeValues
+        CHECK (Price >= 0 AND Stock >= 0 AND ReorderLevel >= 0);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_SalesOrders_MoneyValues')
+    ALTER TABLE dbo.SalesOrders WITH CHECK ADD CONSTRAINT CK_SalesOrders_MoneyValues
+        CHECK
+        (
+            TotalValue >= 0
+            AND (SubtotalValue IS NULL OR SubtotalValue >= 0)
+            AND DiscountValue >= 0
+            AND (SubtotalValue IS NULL OR SubtotalValue - DiscountValue = TotalValue)
+        );
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_SalesOrderItems_UnitPrice')
+    ALTER TABLE dbo.SalesOrderItems WITH CHECK ADD CONSTRAINT CK_SalesOrderItems_UnitPrice
+        CHECK (UnitPrice >= 0);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_Promotions_Products')
+    ALTER TABLE dbo.Promotions ADD CONSTRAINT FK_Promotions_Products
+        FOREIGN KEY (AppliedProductID) REFERENCES dbo.Products (ProductID);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_SalesOrders_Promotions')
+    ALTER TABLE dbo.SalesOrders ADD CONSTRAINT FK_SalesOrders_Promotions
+        FOREIGN KEY (PromotionID) REFERENCES dbo.Promotions (PromotionID);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_StockMovements_Users')
+    ALTER TABLE dbo.StockMovements ADD CONSTRAINT FK_StockMovements_Users
+        FOREIGN KEY (PerformedBy) REFERENCES dbo.Users (UserID);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_Activities_Users')
+    ALTER TABLE dbo.Activities ADD CONSTRAINT FK_Activities_Users
+        FOREIGN KEY (UserID) REFERENCES dbo.Users (UserID);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Promotions_ActiveDates' AND object_id = OBJECT_ID(N'dbo.Promotions'))
+    CREATE INDEX IX_Promotions_ActiveDates ON dbo.Promotions (Status, StartDate, EndDate);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_StockMovements_ProductDate' AND object_id = OBJECT_ID(N'dbo.StockMovements'))
+    CREATE INDEX IX_StockMovements_ProductDate ON dbo.StockMovements (ProductID, CreatedAt DESC);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Activities_CreatedAt' AND object_id = OBJECT_ID(N'dbo.Activities'))
+    CREATE INDEX IX_Activities_CreatedAt ON dbo.Activities (CreatedAt DESC);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_UserSessions_UserActive' AND object_id = OBJECT_ID(N'dbo.UserSessions'))
+    CREATE INDEX IX_UserSessions_UserActive ON dbo.UserSessions (UserID, RevokedAt, ExpiresAt);
 GO
 
 PRINT N'DXLabCore schema is ready.';

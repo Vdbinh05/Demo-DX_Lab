@@ -15,6 +15,8 @@ import {
   Building2,
   CalendarDays,
   ChartNoAxesCombined,
+  ChevronLeft,
+  ChevronRight,
   Circle,
   CircleAlert,
   CircleCheck,
@@ -67,16 +69,16 @@ import {
 } from "lucide-react";
 import {
   menus,
-  permissionsByPortal,
+  permissionsByRole,
   portalConfig,
+  portalFromRole,
 } from "./config/navigation";
 import { AdminHeaderTools, AdminPageRouter } from "./admin/AdminPages";
+import LoginScreen from "./features/auth/AuthPage";
 import { API_BASE_URL, apiRequest } from "./api";
 import { useCatalogCustomers, useCatalogProducts, usePromotions } from "./hooks/useCatalogData";
 import { useMyOrders } from "./hooks/useMyOrders";
 
-const LOGIN_API_URL = `${API_BASE_URL}/login`;
-const REGISTER_API_URL = `${API_BASE_URL}/register`;
 const SESSION_STORAGE_KEY = "dxlab.session.v1";
 
 const formatMoney = (value) => `${new Intl.NumberFormat("vi-VN").format(value)} ₫`;
@@ -86,7 +88,8 @@ const formatDateTime = (value) => value
 
 const iconMap = {
   ArrowLeftRight, ArrowRight, ArrowUpRight, BadgeCheck, BadgePercent, BarChart3,
-  Bell, BellRing, Boxes, Building2, CalendarDays, ChartNoAxesCombined, Circle,
+  Bell, BellRing, Boxes, Building2, CalendarDays, ChartNoAxesCombined, ChevronLeft,
+  ChevronRight, Circle,
   CircleAlert, CircleCheck, CircleHelp, ClipboardList, CreditCard, Download,
   Ellipsis, Info, KeyRound, Laptop, LayoutDashboard, ListFilter, Lock,
   LockKeyhole, LockOpen, LogIn, LogOut, Megaphone, Menu, Minus, Monitor,
@@ -101,314 +104,24 @@ function Icon({ name, size = 20, strokeWidth = 1.9 }) {
   return <Component size={size} strokeWidth={strokeWidth} aria-hidden="true" />;
 }
 
-function apiErrorMessage(data, fallback) {
-  const detail = data?.message ?? data?.detail;
-  if (typeof detail === "string") return detail;
-  if (Array.isArray(detail)) return detail.map((item) => item?.msg).filter(Boolean).join("; ") || fallback;
-  return fallback;
-}
-
-function portalFromRole(roleId) {
-  const normalizedRole = String(roleId || "").trim().toLowerCase();
-  return Object.entries(portalConfig).find(([, config]) =>
-    config.roles.some((role) => role.toLowerCase() === normalizedRole),
-  )?.[0] || null;
-}
-
-function LoginScreen({ onAuthenticated }) {
-  const [portal, setPortal] = useState("employee");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [registerOpen, setRegisterOpen] = useState(false);
-  const selectedPortal = portalConfig[portal];
-
-  const handleLogin = async (event) => {
-    event.preventDefault();
-    setError("");
-
-    if (!username.trim() || !password) {
-      setError("Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch(LOGIN_API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: username.trim(), password }),
-      });
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok || !data?.success || !data?.user) {
-        setError(apiErrorMessage(data, "Tên đăng nhập hoặc mật khẩu không chính xác."));
-        return;
-      }
-
-      const accountPortal = portalFromRole(data.user.RoleID);
-      if (!accountPortal) {
-        setError(`Vai trò “${data.user.RoleID || "chưa xác định"}” chưa được cấu hình trong hệ thống.`);
-        return;
-      }
-
-      if (accountPortal !== portal) {
-        setError(
-          `Tài khoản này thuộc khu vực ${portalConfig[accountPortal].label}. ` +
-          `Hãy chọn đúng loại tài khoản để đăng nhập.`,
-        );
-        return;
-      }
-
-      onAuthenticated(data.user, accountPortal, data.access_token);
-    } catch {
-      setError("Không thể kết nối FastAPI tại cổng 8000. Hãy kiểm tra backend và cấu hình VITE_API_URL.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <main className="auth-page">
-      <div className="auth-orb auth-orb-one" />
-      <div className="auth-orb auth-orb-two" />
-
-      <section className="auth-shell">
-        <div className="auth-story">
-          <div className="auth-brand">
-            <LogoMark />
-            <div>
-              <strong>DX-LAB CORE</strong>
-              <span>Digital Commerce Workspace</span>
-            </div>
-          </div>
-
-          <div className="story-content">
-            <span className="story-kicker">MỘT HỆ THỐNG · ĐÚNG QUYỀN HẠN</span>
-            <h1>Không gian làm việc rõ ràng cho từng vai trò.</h1>
-            <p>
-              Nhân viên tập trung bán hàng. Quản trị viên kiểm soát dữ liệu,
-              vận hành và doanh thu trên một nền tảng thống nhất.
-            </p>
-            <div className="story-preview">
-              <div className="preview-head">
-                <span><i /> Tổng quan vận hành</span>
-                <small>Dữ liệu trực tiếp</small>
-              </div>
-              <div className="preview-grid">
-                <div><Icon name="TrendingUp" /><span>Doanh thu</span><b>Theo thời gian thực</b></div>
-                <div><Icon name="ShoppingBag" /><span>Đơn hàng</span><b>Truy xuất đầy đủ</b></div>
-              </div>
-              <div className="preview-chart">
-                {[36, 52, 44, 67, 61, 82, 76, 94].map((height, index) => (
-                  <i key={index} style={{ height: `${height}%` }} />
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="story-trust">
-            <span><Icon name="ShieldCheck" size={17} /> Phân quyền theo SQL Server</span>
-            <span><Icon name="LockKeyhole" size={17} /> Mật khẩu được mã hóa</span>
-          </div>
-        </div>
-
-        <div className="auth-panel">
-          <div className="auth-form-wrap">
-            <div className="auth-heading">
-              <span className="mobile-brand"><LogoMark /> DX-LAB CORE</span>
-              <p className="eyebrow">CỔNG ĐĂNG NHẬP</p>
-              <h2>Chào mừng trở lại</h2>
-              <p>Chọn khu vực làm việc, sau đó đăng nhập bằng tài khoản được cấp.</p>
-            </div>
-
-            <div className="portal-picker" role="radiogroup" aria-label="Loại tài khoản">
-              {Object.entries(portalConfig).map(([key, config]) => (
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={portal === key}
-                  className={`portal-option ${portal === key ? "selected" : ""}`}
-                  key={key}
-                  onClick={() => { setPortal(key); setError(""); }}
-                >
-                  <span className="portal-icon"><Icon name={config.icon} /></span>
-                  <span><b>{config.label}</b><small>{config.shortLabel}</small></span>
-                  <i className="radio-dot" />
-                </button>
-              ))}
-            </div>
-
-            <div className={`portal-note ${portal}`}>
-              <Icon name={selectedPortal.icon} size={18} />
-              <span>{selectedPortal.description}</span>
-            </div>
-
-            <form className="auth-form" onSubmit={handleLogin}>
-              {error && <div className="form-alert" role="alert"><Icon name="CircleAlert" size={18} /><span>{error}</span></div>}
-
-              <label className="input-group">
-                <span>Tên đăng nhập</span>
-                <div className="input-shell">
-                  <Icon name="UserRound" size={19} />
-                  <input
-                    value={username}
-                    onChange={(event) => setUsername(event.target.value)}
-                    placeholder="Nhập tên đăng nhập"
-                    autoComplete="username"
-                  />
-                </div>
-              </label>
-
-              <label className="input-group">
-                <span>Mật khẩu</span>
-                <div className="input-shell">
-                  <Icon name="LockKeyhole" size={19} />
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Nhập mật khẩu"
-                    autoComplete="current-password"
-                  />
-                  <button type="button" className="input-action" onClick={() => setShowPassword((current) => !current)} aria-label="Hiện hoặc ẩn mật khẩu">
-                    <Icon name={showPassword ? "EyeOff" : "Eye"} size={18} />
-                  </button>
-                </div>
-              </label>
-
-              <div className="auth-options">
-                <label><input type="checkbox" /> Ghi nhớ đăng nhập</label>
-                <button type="button">Quên mật khẩu?</button>
-              </div>
-
-              <button className="login-button" type="submit" disabled={loading}>
-                {loading ? <span className="spinner" /> : <Icon name="LogIn" size={19} />}
-                {loading ? "Đang xác thực..." : `Đăng nhập với tư cách ${selectedPortal.label}`}
-              </button>
-            </form>
-
-            {portal === "employee" ? (
-              <div className="register-link">
-                Chưa có tài khoản nhân viên?
-                <button type="button" onClick={() => setRegisterOpen(true)}>Tạo tài khoản</button>
-              </div>
-            ) : (
-              <div className="admin-account-note">
-                <Icon name="ShieldCheck" size={16} />
-                <span>Tài khoản quản trị phải được hệ thống cấp, không tạo từ form đăng ký công khai.</span>
-              </div>
-            )}
-
-            <div className="security-caption">
-              <Icon name="Info" size={15} />
-              Lựa chọn ở trên không cấp quyền. Hệ thống vẫn kiểm tra vai trò thật trong SQL Server.
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {registerOpen && <RegisterModal onClose={() => setRegisterOpen(false)} onUseUsername={(value) => { setUsername(value); setPortal("employee"); setRegisterOpen(false); }} />}
-    </main>
-  );
-}
-
-function RegisterModal({ onClose, onUseUsername }) {
-  const [form, setForm] = useState({ fullName: "", username: "", password: "", confirmPassword: "" });
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-
-  const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
-
-  const submit = async (event) => {
-    event.preventDefault();
-    setError("");
-    const fullName = form.fullName.trim();
-    const username = form.username.trim();
-
-    if (!fullName || !username || !form.password || !form.confirmPassword) {
-      setError("Vui lòng nhập đầy đủ thông tin.");
-      return;
-    }
-    if (!/^[A-Za-z0-9._-]{3,50}$/.test(username)) {
-      setError("Tên đăng nhập phải có 3–50 ký tự: chữ không dấu, số, dấu chấm, gạch dưới hoặc gạch ngang.");
-      return;
-    }
-    if (form.password.length < 8) {
-      setError("Mật khẩu phải có ít nhất 8 ký tự.");
-      return;
-    }
-    if (form.password !== form.confirmPassword) {
-      setError("Mật khẩu xác nhận không khớp.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch(REGISTER_API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ full_name: fullName, username, password: form.password }),
-      });
-      const data = await response.json().catch(() => null);
-      if (!response.ok || !data?.success) {
-        setError(apiErrorMessage(data, "Không thể tạo tài khoản."));
-        return;
-      }
-      setSuccess(true);
-    } catch {
-      setError("Không thể kết nối FastAPI tại cổng 8000.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal title="Tạo tài khoản nhân viên" onClose={onClose} narrow>
-      {success ? (
-        <div className="success-state">
-          <span><Icon name="BadgeCheck" size={34} /></span>
-          <h3>Tạo tài khoản thành công</h3>
-          <p>Tài khoản <b>{form.username.trim()}</b> đã được lưu với vai trò <b>Sales</b>.</p>
-          <button className="primary-button" onClick={() => onUseUsername(form.username.trim())}>Đăng nhập ngay</button>
-        </div>
-      ) : (
-        <form onSubmit={submit}>
-          <div className="register-policy"><Icon name="ShieldCheck" size={19} /><span>Tài khoản đăng ký công khai luôn là nhân viên. Admin chỉ có thể được cấp bởi quản trị viên.</span></div>
-          <div className="form-grid">
-            <label className="input-group full-span"><span>Họ và tên</span><input value={form.fullName} onChange={(event) => update("fullName", event.target.value)} placeholder="Nguyễn Văn A" maxLength={100} /></label>
-            <label className="input-group full-span"><span>Tên đăng nhập</span><input value={form.username} onChange={(event) => update("username", event.target.value)} placeholder="nguyenvana" maxLength={50} autoComplete="username" /></label>
-            <label className="input-group"><span>Mật khẩu</span><input type="password" value={form.password} onChange={(event) => update("password", event.target.value)} placeholder="Tối thiểu 8 ký tự" autoComplete="new-password" /></label>
-            <label className="input-group"><span>Xác nhận mật khẩu</span><input type="password" value={form.confirmPassword} onChange={(event) => update("confirmPassword", event.target.value)} placeholder="Nhập lại mật khẩu" autoComplete="new-password" /></label>
-          </div>
-          {error && <div className="form-alert compact" role="alert"><Icon name="CircleAlert" size={17} />{error}</div>}
-          <div className="modal-actions">
-            <button type="button" className="secondary-button" onClick={onClose}>Hủy</button>
-            <button type="submit" className="primary-button" disabled={loading}>{loading ? "Đang tạo..." : "Tạo tài khoản"}</button>
-          </div>
-        </form>
-      )}
-    </Modal>
-  );
-}
-
 function LogoMark() {
   return <span className="logo-mark"><span>DX</span></span>;
 }
 
 function Workspace({ user, portal, token, onLogout }) {
   const config = portalConfig[portal];
-  const allowedMenu = menus[portal].filter((item) => permissionsByPortal[portal].has(item.permission));
+  const rolePermissions = permissionsByRole[user?.RoleID] || new Set();
+  const allowedMenu = menus[portal].filter((item) => rolePermissions.has(item.permission));
   const location = useLocation();
   const routeNavigate = useNavigate();
   const routePrefix = `/${portal}/`;
   const requestedPage = location.pathname.startsWith(routePrefix)
     ? location.pathname.slice(routePrefix.length).split("/")[0]
     : "";
-  const page = allowedMenu.some((item) => item.id === requestedPage) ? requestedPage : config.landingPage;
+  const fallbackPage = allowedMenu.some((item) => item.id === config.landingPage)
+    ? config.landingPage
+    : allowedMenu[0]?.id;
+  const page = allowedMenu.some((item) => item.id === requestedPage) ? requestedPage : fallbackPage;
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toast, setToast] = useState("");
 
@@ -426,7 +139,7 @@ function Workspace({ user, portal, token, onLogout }) {
   const currentItem = allowedMenu.find((item) => item.id === page) || allowedMenu[0];
   const navigate = (nextPage) => {
     const target = allowedMenu.find((item) => item.id === nextPage);
-    if (!target || !permissionsByPortal[portal].has(target.permission)) {
+    if (!target || !rolePermissions.has(target.permission)) {
       showToast("Bạn không có quyền truy cập khu vực này.");
       return;
     }
@@ -445,7 +158,7 @@ function Workspace({ user, portal, token, onLogout }) {
       <div className="workspace-main">
         <Header user={user} portal={portal} token={token} pageLabel={currentItem?.label} onNavigate={navigate} onLogout={logout} onOpenMenu={() => setSidebarOpen(true)} />
         <div className="workspace-content">
-          <PageRouter page={page} portal={portal} token={token} user={user} onNavigate={navigate} showToast={showToast} />
+          <PageRouter page={page} portal={portal} token={token} user={user} permissions={rolePermissions} onNavigate={navigate} showToast={showToast} />
         </div>
       </div>
       {toast && <div className="toast"><Icon name="CircleCheck" size={19} />{toast}</div>}
@@ -491,9 +204,9 @@ function Header({ user, portal, token, pageLabel, onNavigate, onLogout, onOpenMe
   );
 }
 
-function PageRouter({ page, portal, token, user, onNavigate, showToast }) {
+function PageRouter({ page, portal, token, user, permissions, onNavigate, showToast }) {
   const allowed = menus[portal].find((item) => item.id === page);
-  if (!allowed || !permissionsByPortal[portal].has(allowed.permission)) return <AccessDenied />;
+  if (!allowed || !permissions.has(allowed.permission)) return <AccessDenied />;
 
   if (portal === "employee") {
     if (page === "pos") return <PointOfSale token={token} user={user} showToast={showToast} />;
@@ -513,21 +226,90 @@ function PageHeading({ eyebrow, title, description, children }) {
 function PointOfSale({ token, user, showToast }) {
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
+  const [productPage, setProductPage] = useState(1);
   const [cart, setCart] = useState([]);
   const [customerId, setCustomerId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
+  const [promotionId, setPromotionId] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
+  const [quote, setQuote] = useState(null);
+  const [quoteError, setQuoteError] = useState("");
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteRevision, setQuoteRevision] = useState(0);
   const checkoutKeyRef = useRef(null);
-  const { items: products, loading, error, reload: reloadProducts } = useCatalogProducts(token);
+  const productData = useCatalogProducts(token, { q: query, page: productPage, pageSize: 12 });
+  const { items: products, loading, error, reload: reloadProducts } = productData;
   const customerData = useCatalogCustomers(token);
-  const visibleProducts = products.filter((product) => `${product.name} ${product.category}`.toLowerCase().includes(query.toLowerCase()));
+  const promotionData = usePromotions(token);
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const selectedCustomer = customerData.items.find((item) => item.id === customerId);
-  const cartSignature = cart.map((item) => `${item.id}:${item.quantity}`).join("|");
+  const eligiblePromotions = promotionData.items.filter((promotion) => {
+    const tierMatches = promotion.customerTier === "Tất cả khách hàng"
+      || promotion.customerTier.toLowerCase() === String(selectedCustomer?.tier || "").toLowerCase();
+    const usageAvailable = promotion.maxUses == null || promotion.usedCount < promotion.maxUses;
+    const scopeMatches = promotion.appliedProductId
+      ? cart.some((item) => item.id === promotion.appliedProductId)
+      : promotion.appliedCategory
+        ? cart.some((item) => item.category.toLowerCase() === promotion.appliedCategory.toLowerCase())
+        : true;
+    return tierMatches && usageAvailable && scopeMatches
+      && total >= promotion.minOrderValue && promotion.discountValue > 0;
+  });
+  const previewSubtotal = quote?.subtotal_value ?? total;
+  const previewDiscount = quote?.discount_value ?? 0;
+  const previewTotal = quote?.total_value ?? total;
+  const cartSignature = cart.map((item) => `${item.id}:${item.quantity}:${item.price}`).join("|");
 
   useEffect(() => {
     checkoutKeyRef.current = null;
-  }, [cartSignature, customerId, paymentMethod]);
+  }, [cartSignature, customerId, paymentMethod, promotionId]);
+
+  useEffect(() => {
+    if (!cart.length || !customerId) {
+      setQuote(null);
+      setQuoteError("");
+      setQuoteLoading(false);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    setQuote(null);
+    setQuoteError("");
+    setQuoteLoading(true);
+    const timer = window.setTimeout(() => {
+      apiRequest("/orders/preview", {
+        token,
+        method: "POST",
+        signal: controller.signal,
+        body: {
+          customer_id: customerId,
+          promotion_id: promotionId || null,
+          items: cart.map((item) => ({ product_id: item.id, quantity: item.quantity })),
+        },
+      })
+        .then(setQuote)
+        .catch((requestError) => {
+          if (requestError.name !== "AbortError") {
+            setQuote(null);
+            setQuoteError(requestError.message);
+          }
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setQuoteLoading(false);
+        });
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [cart, customerId, promotionId, quoteRevision, token]);
+
+  useEffect(() => {
+    if (promotionId && !eligiblePromotions.some((item) => item.id === promotionId)) {
+      setPromotionId("");
+    }
+  }, [eligiblePromotions, promotionId]);
 
   useEffect(() => {
     if (!customerId && customerData.items.length) {
@@ -536,10 +318,21 @@ function PointOfSale({ token, user, showToast }) {
   }, [customerData.items, customerId]);
 
   useEffect(() => {
-    setCart((current) => current.map((item) => {
-      const latest = products.find((product) => product.id === item.id);
-      return latest ? { ...latest, quantity: item.quantity } : item;
-    }));
+    setCart((current) => {
+      let changed = false;
+      const next = current.map((item) => {
+        const latest = products.find((product) => product.id === item.id);
+        if (!latest) return item;
+        const unchanged = latest.name === item.name
+          && latest.category === item.category
+          && latest.price === item.price
+          && latest.stock === item.stock;
+        if (unchanged) return item;
+        changed = true;
+        return { ...latest, quantity: item.quantity };
+      });
+      return changed ? next : current;
+    });
   }, [products]);
 
   const addToCart = (product) => {
@@ -556,7 +349,7 @@ function PointOfSale({ token, user, showToast }) {
     .map((item) => item.id === id ? { ...item, quantity: Math.min(item.stock, item.quantity + change) } : item)
     .filter((item) => item.quantity > 0));
   const checkout = async () => {
-    if (!cart.length || !customerId || checkingOut) return;
+    if (!cart.length || !customerId || !quote || checkingOut || quoteLoading || quoteError) return;
     const idempotencyKey = checkoutKeyRef.current || window.crypto.randomUUID();
     checkoutKeyRef.current = idempotencyKey;
     setCheckingOut(true);
@@ -568,12 +361,15 @@ function PointOfSale({ token, user, showToast }) {
           customer_id: customerId,
           payment_method: paymentMethod,
           idempotency_key: idempotencyKey,
+          expected_total_value: Number(quote.total_value),
+          promotion_id: promotionId || null,
           items: cart.map((item) => ({ product_id: item.id, quantity: item.quantity })),
         },
       });
       showToast(`Đã thanh toán đơn ${order.order_id} · ${formatMoney(order.total_value)} cho ${order.customer_name}.`);
       checkoutKeyRef.current = null;
       setCart([]);
+      setPromotionId("");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["live-collection"] }),
         queryClient.invalidateQueries({ queryKey: ["my-orders"] }),
@@ -581,6 +377,7 @@ function PointOfSale({ token, user, showToast }) {
       ]);
     } catch (requestError) {
       showToast(requestError.message);
+      setQuoteRevision((current) => current + 1);
       reloadProducts();
     } finally {
       setCheckingOut(false);
@@ -592,28 +389,30 @@ function PointOfSale({ token, user, showToast }) {
       <PageHeading eyebrow="KHU VỰC NHÂN VIÊN" title={`Chào ${user?.FullName || user?.Username || "bạn"}, bắt đầu bán hàng`} description="Chọn sản phẩm, xác nhận khách hàng và hoàn tất đơn ngay tại quầy." />
       <div className="pos-layout">
         <section className="pos-products">
-          <div className="pos-toolbar"><div className="search-box"><Icon name="Search" size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm sản phẩm hoặc danh mục..." /></div><span>{visibleProducts.length} sản phẩm</span></div>
+          <div className="pos-toolbar"><div className="search-box"><Icon name="Search" size={18} /><input value={query} onChange={(event) => { setQuery(event.target.value); setProductPage(1); }} placeholder="Tìm sản phẩm hoặc danh mục..." /></div><span>{productData.total} sản phẩm</span></div>
           <div className="product-grid">
             {loading && <DataState icon="PackageSearch" title="Đang tải danh mục" description="Đang đồng bộ giá và tồn kho từ SQL Server..." />}
             {!loading && error && <DataState icon="CircleAlert" title="Không tải được sản phẩm" description={error} action="Thử lại" onAction={reloadProducts} />}
-            {!loading && !error && !visibleProducts.length && <DataState icon="PackageX" title="Không tìm thấy sản phẩm" description="Hãy thử từ khóa hoặc danh mục khác." />}
-            {visibleProducts.map((product) => (
+            {!loading && !error && !products.length && <DataState icon="PackageX" title="Không tìm thấy sản phẩm" description="Hãy thử từ khóa hoặc danh mục khác." />}
+            {products.map((product) => (
               <article className="product-card" key={product.id}>
                 <div className="product-visual"><Icon name={product.category === "Laptop" ? "Laptop" : product.category === "Màn hình" ? "Monitor" : "Package"} size={34} /><span className={product.stock <= product.reorder ? "low" : ""}>{product.stock} còn lại</span></div>
                 <small>{product.id} · {product.category}</small><h3>{product.name}</h3><div><strong>{formatMoney(product.price)}</strong><button disabled={product.stock <= 0} onClick={() => addToCart(product)} aria-label={`Thêm ${product.name}`}><Icon name="Plus" size={19} /></button></div>
               </article>
             ))}
           </div>
+          <Pagination page={productData.page} totalPages={productData.totalPages} onPage={setProductPage} />
         </section>
         <aside className="cart-panel">
           <div className="cart-head"><div><span>ĐƠN HÀNG HIỆN TẠI</span><h3>Giỏ hàng</h3></div><b>{cart.reduce((sum, item) => sum + item.quantity, 0)}</b></div>
           <label className="cart-customer"><span>Khách hàng</span><select value={customerId} disabled={customerData.loading} onChange={(event) => setCustomerId(event.target.value)}><option value="">{customerData.loading ? "Đang tải khách hàng..." : "Chọn khách hàng"}</option>{customerData.items.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>{customerData.error && <small>{customerData.error}</small>}</label>
           <label className="cart-customer"><span>Phương thức thanh toán</span><select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}><option value="Cash">Tiền mặt</option><option value="BankTransfer">Chuyển khoản</option></select></label>
+          <label className="cart-customer"><span>Khuyến mãi</span><select value={promotionId} disabled={!eligiblePromotions.length} onChange={(event) => setPromotionId(event.target.value)}><option value="">{eligiblePromotions.length ? "Không áp dụng" : "Không có chương trình phù hợp"}</option>{eligiblePromotions.map((promotion) => <option key={promotion.id} value={promotion.id}>{promotion.title} · {promotion.tag}</option>)}</select><small>Backend sẽ xác minh lại toàn bộ điều kiện khi thanh toán.</small></label>
           <div className="cart-items">
             {!cart.length && <div className="empty-cart"><Icon name="ShoppingBasket" size={34} /><b>Giỏ hàng đang trống</b><span>Chọn sản phẩm để bắt đầu bán hàng.</span></div>}
             {cart.map((item) => <div className="cart-item" key={item.id}><div><b>{item.name}</b><span>{formatMoney(item.price)}</span></div><div className="quantity"><button onClick={() => changeQuantity(item.id, -1)}><Icon name="Minus" size={14} /></button><span>{item.quantity}</span><button onClick={() => changeQuantity(item.id, 1)}><Icon name="Plus" size={14} /></button></div></div>)}
           </div>
-          <div className="cart-summary"><div><span>Khách hàng</span><b>{selectedCustomer?.name || "Chưa chọn"}</b></div><div><span>Tạm tính</span><b>{formatMoney(total)}</b></div><div><span>Giảm giá</span><b>0 ₫</b></div><div className="cart-total"><span>Tổng thanh toán</span><strong>{formatMoney(total)}</strong></div><button className="checkout-button" disabled={!cart.length || !customerId || checkingOut} onClick={checkout}><Icon name="CreditCard" size={19} /> {checkingOut ? "Đang ghi nhận..." : "Thanh toán"}</button><small><Icon name="ShieldCheck" size={14} /> Giá và tồn kho được backend xác nhận lại trước khi tạo đơn.</small></div>
+          <div className="cart-summary"><div><span>Khách hàng</span><b>{selectedCustomer?.name || "Chưa chọn"}</b></div><div><span>Tạm tính</span><b>{formatMoney(previewSubtotal)}</b></div><div><span>Giảm giá</span><b>{formatMoney(previewDiscount)}</b></div><div className="cart-total"><span>{quoteLoading ? "Backend đang tính..." : "Tổng thanh toán dự kiến"}</span><strong>{formatMoney(previewTotal)}</strong></div>{quoteError && <small className="quote-error">{quoteError}</small>}<button className="checkout-button" disabled={!cart.length || !customerId || !quote || checkingOut || quoteLoading || Boolean(quoteError)} onClick={checkout}><Icon name="CreditCard" size={19} /> {checkingOut ? "Đang ghi nhận..." : "Thanh toán"}</button><small><Icon name="ShieldCheck" size={14} /> Số tiền này do backend tính lại từ giá và khuyến mãi trong SQL Server.</small></div>
         </aside>
       </div>
     </div>
@@ -622,9 +421,15 @@ function PointOfSale({ token, user, showToast }) {
 
 function CatalogPage({ token }) {
   const [query, setQuery] = useState("");
-  const { items: products, loading, error, reload } = useCatalogProducts(token);
-  const filtered = products.filter((product) => JSON.stringify(product).toLowerCase().includes(query.toLowerCase()));
-  return <div className="page-stack"><PageHeading eyebrow="TRA CỨU" title="Danh mục sản phẩm" description="Giá bán và tồn kho được đồng bộ trực tiếp từ SQL Server; nhân viên không thể sửa dữ liệu." /><TableToolbar query={query} onQuery={setQuery} placeholder="Tìm sản phẩm..." count={filtered.length} /><div className="table-card">{loading ? <DataState icon="PackageSearch" title="Đang tải danh mục" description="Đang đồng bộ dữ liệu mới nhất..." /> : error ? <DataState icon="CircleAlert" title="Không tải được sản phẩm" description={error} action="Thử lại" onAction={reload} /> : filtered.length ? <table><thead><tr><th>Mã</th><th>Sản phẩm</th><th>Danh mục</th><th>Giá bán</th><th>Tồn kho</th><th>Trạng thái</th></tr></thead><tbody>{filtered.map((product) => <tr key={product.id}><td><b>{product.id}</b></td><td>{product.name}</td><td>{product.category}</td><td><b>{formatMoney(product.price)}</b></td><td>{product.stock}</td><td><StatusBadge value={product.status} /></td></tr>)}</tbody></table> : <DataState icon="PackageX" title="Không tìm thấy sản phẩm" description="Hãy thử từ khóa hoặc danh mục khác." />}</div></div>;
+  const [page, setPage] = useState(1);
+  const productData = useCatalogProducts(token, { q: query, page, pageSize: 20 });
+  const { items: products, loading, error, reload } = productData;
+  return <div className="page-stack"><PageHeading eyebrow="TRA CỨU" title="Danh mục sản phẩm" description="Giá bán và tồn kho được đồng bộ trực tiếp từ SQL Server; nhân viên không thể sửa dữ liệu." /><TableToolbar query={query} onQuery={(value) => { setQuery(value); setPage(1); }} placeholder="Tìm sản phẩm..." count={productData.total} /><div className="table-card">{loading ? <DataState icon="PackageSearch" title="Đang tải danh mục" description="Đang đồng bộ dữ liệu mới nhất..." /> : error ? <DataState icon="CircleAlert" title="Không tải được sản phẩm" description={error} action="Thử lại" onAction={reload} /> : products.length ? <table><thead><tr><th>Mã</th><th>Sản phẩm</th><th>Danh mục</th><th>Giá bán</th><th>Tồn kho</th><th>Trạng thái</th></tr></thead><tbody>{products.map((product) => <tr key={product.id}><td><b>{product.id}</b></td><td>{product.name}</td><td>{product.category}</td><td><b>{formatMoney(product.price)}</b></td><td>{product.stock}</td><td><StatusBadge value={product.status} /></td></tr>)}</tbody></table> : <DataState icon="PackageX" title="Không tìm thấy sản phẩm" description="Hãy thử từ khóa hoặc danh mục khác." />}</div><Pagination page={productData.page} totalPages={productData.totalPages} onPage={setPage} /></div>;
+}
+
+function Pagination({ page, totalPages, onPage }) {
+  if (totalPages <= 1) return null;
+  return <nav className="pagination" aria-label="Phân trang"><button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)}><Icon name="ChevronLeft" size={16} /> Trước</button><span>Trang {page}/{totalPages}</span><button type="button" disabled={page >= totalPages} onClick={() => onPage(page + 1)}>Sau <Icon name="ChevronRight" size={16} /></button></nav>;
 }
 
 function DataState({ icon, title, description, action, onAction }) {
@@ -729,8 +534,12 @@ export default function App() {
   };
 
   const logout = () => {
+    const token = session?.token;
     window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
     setSession(null);
+    if (token) {
+      apiRequest("/logout", { token, method: "POST" }).catch(() => {});
+    }
   };
 
   if (restoringSession) {
